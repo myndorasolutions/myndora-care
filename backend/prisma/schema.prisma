@@ -1,4 +1,4 @@
-// VitaLink Africa — PostgreSQL schema (Product Guide + Cursor Prompt)
+// Myndora Care — PostgreSQL schema (Product Guide + Cursor Prompt)
 generator client {
   provider = "prisma-client-js"
 }
@@ -233,6 +233,12 @@ enum NotificationStatus {
 }
 
 
+enum ClinicalReviewStatus {
+  needs_review
+  reviewed
+  closed
+}
+
 // --- Identity & RBAC ---
 
 model User {
@@ -367,6 +373,8 @@ model Vital {
   capturedByUserId    String              @map("captured_by_user_id")
   captureLocationType CaptureLocationType @map("capture_location_type")
   patientConsented    Boolean             @default(true) @map("patient_consented")
+  clinicalReviewStatus ClinicalReviewStatus @default(needs_review) @map("clinical_review_status")
+  clinicianNotes       String?              @map("clinician_notes")
   createdAt           DateTime            @default(now()) @map("created_at")
 
   patient     Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)

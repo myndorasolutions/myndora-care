@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req } from '@nestjs/common';
 import { CHWVisitType, UserRole } from '@prisma/client';
 import { Request } from 'express';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -23,5 +23,11 @@ export class ChwVisitsController {
     @Req() req: Request,
   ) {
     return this.chwVisitsService.createPhysicalVisit(dto, user, req);
+  }
+
+  @Get('patient/:patientId')
+  @Roles(UserRole.caregiver, UserRole.admin, UserRole.chw)
+  getPatientVisits(@Param('patientId') patientId: string) {
+    return this.chwVisitsService.getVisitHistoryForPatient(patientId);
   }
 }

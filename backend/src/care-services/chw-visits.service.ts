@@ -47,4 +47,26 @@ export class ChwVisitsService {
       ...result,
     };
   }
+
+  async getVisitHistoryForPatient(patientId: string) {
+    const visits = await this.prisma.cHWVisit.findMany({
+      where: { patientId },
+      include: { patient: true },
+      orderBy: { visitDate: 'desc' },
+    });
+
+    const chwIds = [...new Set(visits.map((visit) => visit.chwId))];
+    const chws = await this.prisma.user.findMany({
+      where: { id: { in: chwIds } },
+    });
+    const chwNames = new Map(chws.map((chw) => [chw.id, chw.fullName]));
+
+    return visits.map((visit) => ({
+      id: visit.id,
+      patient_name: visit.patient.fullName,
+      visit_date: visit.visitDate.toISOString(),
+      chw_name: chwNames.get(visit.chwId) ?? 'CHW',
+      verification_method: 'Signature' as const,
+    }));
+  }
 }

@@ -1,24 +1,24 @@
 ﻿services:
   postgres:
     image: postgres:16-alpine
-    container_name: vitalink-postgres
+    container_name: myndora-postgres
     environment:
-      POSTGRES_USER: vitalink
-      POSTGRES_PASSWORD: vitalink_dev
-      POSTGRES_DB: vitalink_dev
+      POSTGRES_USER: myndora
+      POSTGRES_PASSWORD: myndora_dev
+      POSTGRES_DB: myndora_dev
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U vitalink -d vitalink_dev"]
+      test: ["CMD-SHELL", "pg_isready -U myndora -d myndora_dev"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   redis:
     image: redis:7-alpine
-    container_name: vitalink-redis
+    container_name: myndora-redis
     ports:
       - "6379:6379"
     healthcheck:

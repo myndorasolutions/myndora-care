@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import {
   Line,
   LineChart,
@@ -10,32 +10,50 @@ import {
 } from 'recharts';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { RiskBadge } from '@/components/ui/RiskBadge';
-import { mockApi } from '@/lib/mockApi';
 import {
   ILORIN_CHW_PROFILES,
   PRICING_TIERS,
   TRUST_BADGES,
   type SubscriptionPlanId,
 } from '@/lib/pilotData';
-
-const PATIENT_ID = 'p1';
+import {
+  PLAYTEST_PATIENT_ID,
+  reviewQueueToAlerts,
+  vitalsApi,
+} from '@/lib/vitalsApi';
 
 export function SponsorDashboardPage() {
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlanId>('family_care');
   const [selectedChw, setSelectedChw] = useState<string | null>('chw-amina');
 
-  const { data: vitals = [] } = useQuery({
-    queryKey: ['sponsor', 'vitals', PATIENT_ID],
-    queryFn: () => mockApi.getVitalsTrend(PATIENT_ID, 14),
+  const {
+    data: vitals = [],
+    isLoading: vitalsLoading,
+    isError: vitalsError,
+  } = useQuery({
+    queryKey: ['sponsor', 'vitals', PLAYTEST_PATIENT_ID],
+    queryFn: () => vitalsApi.getTrend(PLAYTEST_PATIENT_ID, 14),
   });
-  const { data: alerts = [] } = useQuery({
-    queryKey: ['sponsor', 'alerts'],
-    queryFn: () => mockApi.getAdminAlerts(),
+
+  const {
+    data: reviewQueue = [],
+    isLoading: alertsLoading,
+    isError: alertsError,
+  } = useQuery({
+    queryKey: ['sponsor', 'review-queue'],
+    queryFn: () => vitalsApi.getReviewQueue(),
   });
-  const { data: visits = [] } = useQuery({
-    queryKey: ['sponsor', 'visits'],
-    queryFn: () => mockApi.getVisitHistory(),
+
+  const {
+    data: visits = [],
+    isLoading: visitsLoading,
+    isError: visitsError,
+  } = useQuery({
+    queryKey: ['sponsor', 'visits', PLAYTEST_PATIENT_ID],
+    queryFn: () => vitalsApi.getVisitHistory(PLAYTEST_PATIENT_ID),
   });
+
+  const alerts = reviewQueueToAlerts(reviewQueue, 'Grace Okafor');
 
   const chartData = vitals.map((v) => ({
     date: new Date(v.recorded_at).toLocaleDateString('en-NG', {
@@ -58,6 +76,12 @@ export function SponsorDashboardPage() {
         title="Family sponsor dashboard"
         subtitle="Grace Okafor — Ilorin home monitoring pilot"
       />
+
+      {(vitalsError || alertsError || visitsError) && (
+        <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
+          Some live data could not be loaded. Check that the API is running and you are signed in.
+        </p>
+      )}
 
       <section className="mb-8">
         <h2 className="mb-3 text-lg font-semibold">Pricing packages</h2>
@@ -121,49 +145,63 @@ export function SponsorDashboardPage() {
       <section className="mb-8">
         <h2 className="mb-3 text-lg font-semibold">Vitals trend</h2>
         <div className="card h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData}>
-              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Line type="monotone" dataKey="systolic" stroke="#0D6E6E" strokeWidth={2} />
-              <Line type="monotone" dataKey="diastolic" stroke="#94a3b8" strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
+          {vitalsLoading ? (
+            <p className="flex h-full items-center justify-center text-sm text-slate-500">
+              Loading vitals…
+            </p>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData}>
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Line type="monotone" dataKey="systolic" stroke="#0D6E6E" strokeWidth={2} />
+                <Line type="monotone" dataKey="diastolic" stroke="#94a3b8" strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </section>
 
       <div className="grid gap-8 lg:grid-cols-2">
         <section>
           <h2 className="mb-3 text-lg font-semibold">Visit history</h2>
-          <ul className="space-y-2">
-            {visits.map((v) => (
-              <li key={v.id} className="card py-3 text-sm">
-                <p className="font-medium">{v.patient_name}</p>
-                <p className="text-slate-500">
-                  {v.chw_name} · {new Date(v.visit_date).toLocaleString('en-NG')}
-                </p>
-                <p className="text-xs text-slate-400">{v.verification_method}</p>
-              </li>
-            ))}
-          </ul>
+          {visitsLoading ? (
+            <p className="text-sm text-slate-500">Loading visits…</p>
+          ) : (
+            <ul className="space-y-2">
+              {visits.map((v) => (
+                <li key={v.id} className="card py-3 text-sm">
+                  <p className="font-medium">{v.patient_name}</p>
+                  <p className="text-slate-500">
+                    {v.chw_name} · {new Date(v.visit_date).toLocaleString('en-NG')}
+                  </p>
+                  <p className="text-xs text-slate-400">{v.verification_method}</p>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
         <section>
           <h2 className="mb-3 text-lg font-semibold">Active alerts</h2>
-          <ul className="space-y-2">
-            {alerts.map((a) => (
-              <li key={a.id} className="card flex items-start justify-between gap-3 py-3">
-                <div>
-                  <p className="font-medium">{a.patient_name}</p>
-                  <p className="text-sm text-slate-600">{a.message}</p>
-                  <p className="mt-1 text-xs text-slate-400">
-                    Severity: {severityLabel(a.risk_status)}
-                  </p>
-                </div>
-                <RiskBadge status={a.risk_status} />
-              </li>
-            ))}
-          </ul>
+          {alertsLoading ? (
+            <p className="text-sm text-slate-500">Loading alerts…</p>
+          ) : (
+            <ul className="space-y-2">
+              {alerts.map((a) => (
+                <li key={a.id} className="card flex items-start justify-between gap-3 py-3">
+                  <div>
+                    <p className="font-medium">{a.patient_name}</p>
+                    <p className="text-sm text-slate-600">{a.message}</p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      Severity: {severityLabel(a.risk_status)}
+                    </p>
+                  </div>
+                  <RiskBadge status={a.risk_status} />
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       </div>
     </>

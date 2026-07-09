@@ -9,30 +9,56 @@ interface NavItem {
 }
 
 const navByRole: Record<UserRole, NavItem[]> = {
-  pharmacy: [],
+  pharmacy: [
+    { to: '/pharmacy/dashboard', label: 'Dashboard', end: true },
+    { to: '/pharmacy/refills', label: 'Refill queue' },
+    { to: '/pharmacy/fulfillment', label: 'Fulfillment' },
+    { to: '/pharmacy/earnings', label: 'Earnings' },
+    { to: '/pharmacy/walk-in', label: 'Walk-in check' },
+  ],
   clinician: [
     { to: '/clinician/queue', label: 'Queue', end: true },
     { to: '/clinician/patient/p1/chart', label: 'Patient chart' },
+    { to: '/clinician/consultation', label: 'Consultation note' },
+    { to: '/clinician/prescriptions', label: 'Prescriptions' },
+    { to: '/clinician/earnings', label: 'Earnings' },
   ],
-  lab: [],
-  admin: [{ to: '/admin/dashboard', label: 'Pilot dashboard', end: true }],
+  lab: [
+    { to: '/lab/orders', label: 'Order queue', end: true },
+    { to: '/lab/scheduler', label: 'Scheduler' },
+    { to: '/lab/upload', label: 'Result upload' },
+  ],
+  admin: [
+    { to: '/admin/dashboard', label: 'Pilot dashboard', end: true },
+    { to: '/admin/patients', label: 'Patients' },
+    { to: '/admin/payments', label: 'Payments' },
+    { to: '/admin/providers', label: 'Providers' },
+    { to: '/admin/reports', label: 'Reports' },
+    { to: '/admin/compliance', label: 'Compliance' },
+  ],
   super_admin: [
     { to: '/super-admin/feature-flags', label: 'Feature flags', end: true },
     { to: '/super-admin/pricing-rules', label: 'Pricing rules' },
+    { to: '/super-admin/clinical-safety', label: 'Clinical safety' },
+    { to: '/super-admin/system-config', label: 'System config' },
   ],
   caregiver: [{ to: '/sponsor/dashboard', label: 'Sponsor home', end: true }],
   patient: [
     { to: '/patient/dashboard', label: 'Home', end: true },
     { to: '/patient/vitals', label: 'My vitals' },
   ],
-  home_helper: [{ to: '/caregiver/dashboard', label: 'Dashboard', end: true }],
+  home_helper: [
+    { to: '/caregiver/dashboard', label: 'Dashboard', end: true },
+    { to: '/caregiver/patients', label: 'Patients' },
+    { to: '/caregiver/vitals', label: 'Vitals entry' },
+  ],
   chw: [{ to: '/chw/checkup', label: 'Field checkup', end: true }],
 };
 
 const roleHome: Record<UserRole, string> = {
-  pharmacy: '/login',
+  pharmacy: '/pharmacy/dashboard',
   clinician: '/clinician/queue',
-  lab: '/login',
+  lab: '/lab/orders',
   admin: '/admin/dashboard',
   super_admin: '/super-admin/feature-flags',
   caregiver: '/sponsor/dashboard',

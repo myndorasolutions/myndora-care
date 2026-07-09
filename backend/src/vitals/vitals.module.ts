@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
+import { VitalsController } from './vitals.controller';
 import { VitalsService } from './services/vitals.service';
 
 @Module({
+  controllers: [VitalsController],
   providers: [VitalsService],
   exports: [VitalsService],
 })

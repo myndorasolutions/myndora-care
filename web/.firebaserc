@@ -1,0 +1,22 @@
+{
+  "projects": {
+    "default": "project-681c9d16-2470-459b-8a1"
+  },
+  "targets": {
+    "project-681c9d16-2470-459b-8a1": {
+      "hosting": {
+        "myndora-care": [
+          "project-681c9d16-2470-459b-8a1"
+        ]
+      }
+    },
+    "myndora-care-dev": {
+      "hosting": {
+        "myndora-care": [
+          "myndora-care-dev"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

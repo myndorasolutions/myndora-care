@@ -39,7 +39,7 @@ Write-Host "Seeding truststore from Android Studio JBR cacerts ..."
     -destkeystore $trustStore `
     -deststorepass $storePass | Out-Null
 
-$hosts = @("plugins.gradle.org", "repo.maven.apache.org", "dl.google.com", "services.gradle.org")
+$hosts = @("plugins.gradle.org", "repo.maven.apache.org", "dl.google.com", "services.gradle.org", "storage.googleapis.com")
 $index = 0
 foreach ($hostName in $hosts) {
     Write-Host "Importing certificate chain from $hostName ..."
@@ -52,16 +52,13 @@ foreach ($hostName in $hosts) {
 }
 
 $gradleUserProps = Join-Path $env:USERPROFILE ".gradle\gradle.properties"
-$lines = @()
-if (Test-Path $gradleUserProps) {
-    $lines = Get-Content $gradleUserProps | Where-Object {
-        $_ -notmatch '^systemProp\.javax\.net\.ssl\.trustStore'
-    }
-}
-$lines += "systemProp.javax.net.ssl.trustStore=$trustStore"
-$lines += "systemProp.javax.net.ssl.trustStorePassword=$storePass"
-$lines += "systemProp.com.sun.net.ssl.checkRevocation=false"
-Set-Content -Path $gradleUserProps -Value ($lines -join "`n")
+$gradlePropsDir = Split-Path $gradleUserProps -Parent
+New-Item -ItemType Directory -Force -Path $gradlePropsDir | Out-Null
+@(
+    "systemProp.com.sun.net.ssl.checkRevocation=false",
+    "systemProp.javax.net.ssl.trustStore=$trustStore",
+    "systemProp.javax.net.ssl.trustStorePassword=$storePass"
+) | Set-Content -Path $gradleUserProps -Encoding utf8
 
 Write-Host ""
 Write-Host "Truststore written to $trustStore"

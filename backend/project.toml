@@ -1,0 +1,6 @@
+[project]
+id = "myndora-care-backend"
+
+[[build.env]]
+name = "BP_NODE_INSTALL_ARGS"
+value = "--no-frozen-lockfile"

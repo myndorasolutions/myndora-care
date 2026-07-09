@@ -5,10 +5,10 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = vitalink_africa
+PRODUCT_NAME = Myndora Care
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.myndora.vitalink.vitalinkAfrica
+PRODUCT_BUNDLE_IDENTIFIER = com.myndoracare.app
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.myndora.vitalink. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 Myndora Solutions. All rights reserved.

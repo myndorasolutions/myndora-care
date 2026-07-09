@@ -63,8 +63,12 @@ export function AdminDashboardPage() {
     <>
       <PageHeader
         title="Care coordinator overview"
-        subtitle="Trust monitoring, sync queues, and clinician review simulator"
+        subtitle="Pilot data — API wiring next sprint for KPIs below; clinician review is live"
       />
+      <p className="mb-6 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-600">
+        Sponsor profiles, remote checks, visit proofs, and sync queue use pilot mock data. The
+        Clinician Reviewer panel below reads from the live vitals API.
+      </p>
       {isLoading ? (
         <p className="text-slate-500">Loading KPIs…</p>
       ) : (
