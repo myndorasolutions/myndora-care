@@ -48,10 +48,13 @@ docker-compose up -d postgres redis
 ```bash
 cd backend
 npm ci
+# Set DIRECT_URL for migrations (same as DATABASE_URL for local Docker)
 npx prisma migrate deploy
 npx prisma db seed
 npm run start:dev
 ```
+
+Database migrations run **out-of-band** (Cloud Run Job or launch checklist), never on web service container boot. See `scripts/run-db-init-job.ps1`.
 
 ### 4. Web & API (monorepo)
 ```bash
@@ -79,7 +82,32 @@ Closed-test bundle (requires working Gradle/Java trust store):
 flutter build appbundle --dart-define=INTEGRATION_FLOW=true --dart-define=API_BASE_URL=https://myndora-care-backend.onrender.com/api/v1
 ```
 
-### 6. Deploy (Firebase Hosting + Cloud Run)
+### 6. Dual-deploy pipeline (simulation then promote)
+
+Single codebase; separate Cloud Run services, Firebase Hosting sites, and databases.
+
+| | Simulation | Production |
+|--|------------|------------|
+| Web | `simulation.myndoracare.com` (site `myndora-care-simulation`) | `*.web.app` (site `project-681c9d16-2470-459b-8a1`) |
+| API | `myndora-backend-api-sim` (`ENVIRONMENT=simulation`) | `myndora-backend-api` → `api.myndoracare.com` |
+| DB | `SIMULATION_DATABASE_URL` (required, distinct) | prod pooler on Cloud Run |
+
+```powershell
+# Set isolated simulation DB (never reuse production URLs)
+$env:SIMULATION_DATABASE_URL = "postgresql://postgres.<sim-ref>:...@aws-0-...pooler.supabase.com:6543/postgres?pgbouncer=true"
+$env:SIMULATION_DIRECT_URL   = "postgresql://postgres.<sim-ref>:...@db.<sim-ref>.supabase.co:5432/postgres"
+$env:SIMULATION_SUPABASE_PROJECT_REF = "<sim-ref>"
+
+# 1) Validate on simulation
+powershell -File scripts\deploy-simulation.ps1
+
+# 2) After certification, promote the same image to production
+powershell -File scripts\promote-production.ps1 -FromSimulation
+```
+
+Feature flags: backend `ENVIRONMENT=simulation|production` (alias `APP_ENV`); web `VITE_ENVIRONMENT` via `.env.simulation` / `.env.production`.
+
+### 7. Legacy single-env deploy (Firebase Hosting + Cloud Run)
 
 ```powershell
 # 1. Cloud Run API (prerequisite for Firebase /api/v1 rewrite)
@@ -96,13 +124,18 @@ Or use the all-in-one hosting script:
 powershell -File scripts\deploy-firebase-hosting.ps1
 ```
 
-### 7. Post-deploy verification
+### 8. Post-deploy verification
 
 Automated smoke tests (7 checks including Firebase `/api/v1/health` rewrite):
 
 ```powershell
-# Phase 1 only — migrate + seed production DB
-powershell -File scripts\launch-checklist.ps1 -SeedOnly -DatabaseUrl "postgresql://..."
+# Phase 1 only — migrate + seed production DB (use DIRECT_URL for Supabase)
+powershell -File scripts\launch-checklist.ps1 -SeedOnly `
+  -DatabaseUrl "postgresql://...@...:6543/postgres?pgbouncer=true" `
+  -DirectUrl "postgresql://...@...:5432/postgres"
+
+# Or Cloud Run Job
+powershell -File scripts\run-db-init-job.ps1 -DirectUrl "postgresql://..." -DatabaseUrl "postgresql://..."
 
 # Post-deploy smoke (assumes seed already ran)
 powershell -File scripts\launch-checklist.ps1 -BaseUrl "https://YOUR_PROJECT.web.app" -SkipSeed
@@ -136,7 +169,11 @@ Base URL: `http://localhost:8080/api/v1`
 
 Health: `GET /health`
 
-Vitals: `POST /vitals`, `GET /vitals/patient/:patientId/trend`, `GET /vitals/review-queue`
+CHW activation: `GET /chw/profile`, `PATCH /chw/activation` (admin)
+
+Care services: `POST /remote-checks`, `POST /physical-visits`, `PATCH /physical-visits/:id/complete`
+
+Escalations: `GET /escalations/review-queue`
 
 ## Mock Integrations
 

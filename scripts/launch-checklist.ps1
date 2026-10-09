@@ -20,6 +20,7 @@
 param(
     [string]$BaseUrl = "",
     [string]$DatabaseUrl = $env:DATABASE_URL,
+    [string]$DirectUrl = $env:DIRECT_URL,
     [string]$CloudRunUrl = "",
     [switch]$SeedOnly,
     [switch]$SkipSeed
@@ -30,7 +31,9 @@ $RepoRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $BackendRoot = Join-Path $RepoRoot "backend"
 
 $PatientId = "playtest-patient-grace"
+$SponsorId = "playtest-sponsor-tunde"
 $AdminToken = "mock-jwt-admin"
+$ChwToken = "mock-jwt-chw"
 $CaregiverToken = "mock-jwt-caregiver"
 $RequestTimeoutSec = 30
 
@@ -93,6 +96,12 @@ function Invoke-SeedPhase {
     }
 
     $env:DATABASE_URL = $DatabaseUrl
+    if ($DirectUrl) {
+        $env:DIRECT_URL = $DirectUrl
+    }
+    elseif (-not $env:DIRECT_URL) {
+        $env:DIRECT_URL = $DatabaseUrl
+    }
 
     Write-Host ""
     Write-Host "=== Phase 1: Database migrate + seed ===" -ForegroundColor Cyan
@@ -126,32 +135,46 @@ function Invoke-SmokeTests {
     Write-Host ""
     Write-Host "=== Phase 4: Smoke tests against $Origin ===" -ForegroundColor Cyan
 
+    $isCloudRunApi = $Origin -match '\.run\.app$'
+
     # Test 1: SPA shell at /login
-    try {
-        $login = Invoke-SmokeHtml "$Origin/login"
-        $body = $login.Content
-        $hasRoot = $body -match 'id="root"'
-        $hasTitle = $body -match "Myndora Care"
-        $passed = ($login.StatusCode -eq 200) -and $hasRoot -and $hasTitle
-        Write-TestResult -Number 1 -Name "SPA loads /login" -Passed $passed `
-            -Detail "status=$($login.StatusCode), root=$hasRoot, title=$hasTitle"
+    if ($isCloudRunApi) {
+        Write-TestResult -Number 1 -Name "SPA loads /login" -Passed $true `
+            -Detail "skipped on Cloud Run API URL (no Hosting SPA)"
     }
-    catch {
-        Write-TestResult -Number 1 -Name "SPA loads /login" -Passed $false -Detail $_.Exception.Message
+    else {
+        try {
+            $login = Invoke-SmokeHtml "$Origin/login"
+            $body = $login.Content
+            $hasRoot = $body -match 'id="root"'
+            $hasTitle = $body -match "Myndora Care"
+            $passed = ($login.StatusCode -eq 200) -and $hasRoot -and $hasTitle
+            Write-TestResult -Number 1 -Name "SPA loads /login" -Passed $passed `
+                -Detail "status=$($login.StatusCode), root=$hasRoot, title=$hasTitle"
+        }
+        catch {
+            Write-TestResult -Number 1 -Name "SPA loads /login" -Passed $false -Detail $_.Exception.Message
+        }
     }
 
     # Test 2: SPA fallback at /sponsor/dashboard
-    try {
-        $dashboard = Invoke-SmokeHtml "$Origin/sponsor/dashboard"
-        $body = $dashboard.Content
-        $hasRoot = $body -match 'id="root"'
-        $hasTitle = $body -match "Myndora Care"
-        $passed = ($dashboard.StatusCode -eq 200) -and $hasRoot -and $hasTitle
-        Write-TestResult -Number 2 -Name "SPA routing /sponsor/dashboard" -Passed $passed `
-            -Detail "status=$($dashboard.StatusCode), SPA shell present=$hasRoot"
+    if ($isCloudRunApi) {
+        Write-TestResult -Number 2 -Name "SPA routing /sponsor/dashboard" -Passed $true `
+            -Detail "skipped on Cloud Run API URL (no Hosting SPA)"
     }
-    catch {
-        Write-TestResult -Number 2 -Name "SPA routing /sponsor/dashboard" -Passed $false -Detail $_.Exception.Message
+    else {
+        try {
+            $dashboard = Invoke-SmokeHtml "$Origin/sponsor/dashboard"
+            $body = $dashboard.Content
+            $hasRoot = $body -match 'id="root"'
+            $hasTitle = $body -match "Myndora Care"
+            $passed = ($dashboard.StatusCode -eq 200) -and $hasRoot -and $hasTitle
+            Write-TestResult -Number 2 -Name "SPA routing /sponsor/dashboard" -Passed $passed `
+                -Detail "status=$($dashboard.StatusCode), SPA shell present=$hasRoot"
+        }
+        catch {
+            Write-TestResult -Number 2 -Name "SPA routing /sponsor/dashboard" -Passed $false -Detail $_.Exception.Message
+        }
     }
 
     # Test 3: API rewrite /api/v1/health via Firebase domain
@@ -165,52 +188,61 @@ function Invoke-SmokeTests {
         Write-TestResult -Number 3 -Name "API rewrite /api/v1/health" -Passed $false -Detail $_.Exception.Message
     }
 
-    # Test 4: Admin review queue
+    # Test 4: Escalation review queue
     $reviewQueue = $null
     try {
         $headers = @{ Authorization = "Bearer $AdminToken" }
-        $reviewQueue = @(Invoke-SmokeJson "$Origin/api/v1/vitals/review-queue" -Headers $headers)
-        $needsReview = @($reviewQueue | Where-Object { $_.status -eq "needs_review" })
-        $passed = ($reviewQueue.Count -ge 1) -and ($needsReview.Count -ge 1)
-        Write-TestResult -Number 4 -Name "Admin review queue" -Passed $passed `
-            -Detail "total=$($reviewQueue.Count), needs_review=$($needsReview.Count)"
+        $reviewQueue = @(Invoke-SmokeJson "$Origin/api/v1/escalations/review-queue" -Headers $headers)
+        $urgent = @($reviewQueue | Where-Object { $_.severity -eq "URGENT" })
+        $passed = ($reviewQueue.Count -ge 1) -and ($urgent.Count -ge 1)
+        Write-TestResult -Number 4 -Name "Escalation review queue" -Passed $passed `
+            -Detail "total=$($reviewQueue.Count), urgent=$($urgent.Count)"
     }
     catch {
-        Write-TestResult -Number 4 -Name "Admin review queue" -Passed $false -Detail $_.Exception.Message
+        Write-TestResult -Number 4 -Name "Escalation review queue" -Passed $false -Detail $_.Exception.Message
     }
 
-    # Test 5: Sponsor vitals trend + visit history
+    # Test 5: CHW profile + physical visit submission
     try {
-        $headers = @{ Authorization = "Bearer $CaregiverToken" }
-        $trend = @(Invoke-SmokeJson "$Origin/api/v1/vitals/patient/$PatientId/trend?days=14" -Headers $headers)
-        $visits = @(Invoke-SmokeJson "$Origin/api/v1/chw-visits/patient/$PatientId" -Headers $headers)
-        $passed = ($trend.Count -ge 1) -and ($visits.Count -ge 1)
-        Write-TestResult -Number 5 -Name "Sponsor vitals + visits" -Passed $passed `
-            -Detail "trend=$($trend.Count), visits=$($visits.Count)"
+        $headers = @{ Authorization = "Bearer $ChwToken" }
+        $profile = Invoke-SmokeJson "$Origin/api/v1/chw/profile" -Headers $headers
+        $postBody = @{
+            patientId = $PatientId
+            sponsorId = $SponsorId
+            scheduledTime = (Get-Date).ToUniversalTime().ToString("o")
+            checklistResponses = @{ medication_taken = $true }
+            systolicBp = 124
+            diastolicBp = 78
+        } | ConvertTo-Json -Depth 5
+        $visit = Invoke-SmokeJson "$Origin/api/v1/physical-visits" `
+            -Method Post -Headers $headers -Body $postBody
+        $passed = ($profile.activationLevel -eq "HOME_VISIT_APPROVED") -and ($null -ne $visit.visit)
+        Write-TestResult -Number 5 -Name "CHW profile + physical visit" -Passed $passed `
+            -Detail "activation=$($profile.activationLevel), visit=$($visit.visit.id)"
     }
     catch {
-        Write-TestResult -Number 5 -Name "Sponsor vitals + visits" -Passed $false -Detail $_.Exception.Message
+        Write-TestResult -Number 5 -Name "CHW profile + physical visit" -Passed $false -Detail $_.Exception.Message
     }
 
-    # Test 6: PATCH review
+    # Test 6: Physical visit with urgent BP triggers escalation
     try {
-        if (-not $reviewQueue -or $reviewQueue.Count -eq 0) {
-            throw "No review queue data from test 4"
-        }
-        $target = $reviewQueue | Where-Object { $_.status -eq "needs_review" } | Select-Object -First 1
-        if (-not $target) {
-            throw "No needs_review vital available to patch"
-        }
-        $headers = @{ Authorization = "Bearer $AdminToken" }
-        $patchBody = '{"status":"reviewed","clinician_notes":"Launch checklist automated test"}'
-        $patched = Invoke-SmokeJson "$Origin/api/v1/vitals/$($target.id)/review" `
-            -Method Patch -Headers $headers -Body $patchBody
-        $passed = $patched.status -eq "reviewed"
-        Write-TestResult -Number 6 -Name "PATCH vital review" -Passed $passed `
-            -Detail "vital=$($target.id), status=$($patched.status)"
+        $headers = @{ Authorization = "Bearer $ChwToken" }
+        $postBody = @{
+            patientId = $PatientId
+            sponsorId = $SponsorId
+            scheduledTime = (Get-Date).ToUniversalTime().ToString("o")
+            checklistResponses = @{ medication_taken = $false; symptoms = "severe headache" }
+            systolicBp = 172
+            diastolicBp = 108
+        } | ConvertTo-Json -Depth 5
+        $flagged = Invoke-SmokeJson "$Origin/api/v1/physical-visits" `
+            -Method Post -Headers $headers -Body $postBody
+        $passed = ($null -ne $flagged.escalation) -and ($flagged.escalation.severity -eq "URGENT")
+        Write-TestResult -Number 6 -Name "Vital-flagging escalation" -Passed $passed `
+            -Detail "severity=$($flagged.escalation.severity), visit=$($flagged.visit.id)"
     }
     catch {
-        Write-TestResult -Number 6 -Name "PATCH vital review" -Passed $false -Detail $_.Exception.Message
+        Write-TestResult -Number 6 -Name "Vital-flagging escalation" -Passed $false -Detail $_.Exception.Message
     }
 
     # Test 7: Same-origin (implicit if tests 3-6 passed on BaseUrl)
@@ -234,6 +266,183 @@ function Invoke-SmokeTests {
     }
 }
 
+function Invoke-E2ELifecycleTests {
+    param([string]$Origin)
+
+    $Origin = Normalize-BaseUrl $Origin
+    $api = "$Origin/api/v1"
+    $stamp = Get-Date -Format "yyyyMMddHHmmss"
+
+    Write-Host ""
+    Write-Host "=== Phase 5: Staging E2E lifecycle against $Origin ===" -ForegroundColor Cyan
+
+    $sponsorToken = $null
+    $sponsorId = $null
+    $patientId = $null
+    $chwToken = $null
+    $chwProfileId = $null
+
+    # E2E 1: Sponsor onboarding
+    try {
+        $sponsorEmail = "e2e-sponsor-$stamp@myndora.demo"
+        $regBody = @{
+            email = $sponsorEmail
+            password = "StagingPass1!"
+            role = "SPONSOR"
+            fullName = "E2E Sponsor $stamp"
+            country = "Nigeria"
+        } | ConvertTo-Json
+        $reg = Invoke-SmokeJson "$api/auth/register" -Method Post -Body $regBody
+        $sponsorToken = $reg.accessToken
+        $sponsorId = $reg.sponsor.id
+        $headers = @{ Authorization = "Bearer $sponsorToken" }
+        $patientBody = @{
+            fullName = "E2E Patient $stamp"
+            dateOfBirth = "1965-01-15T00:00:00.000Z"
+            gender = "female"
+            address = "E2E Test Address, Ilorin"
+            preferredLanguage = "English"
+            emergencyContact = @{ name = "E2E Contact"; phone = "+234800000099" }
+            conditionTags = @("hypertension")
+        } | ConvertTo-Json -Depth 5
+        $patient = Invoke-SmokeJson "$api/patients" -Method Post -Headers $headers -Body $patientBody
+        $patientId = $patient.id
+        $passed = ($null -ne $sponsorId) -and ($patient.consentStatus -eq $false) -and ($patient.sponsorId -eq $sponsorId)
+        Write-TestResult -Number 8 -Name "E2E Sponsor onboarding" -Passed $passed `
+            -Detail "sponsor=$sponsorId, patient=$patientId, consent=$($patient.consentStatus)"
+    }
+    catch {
+        Write-TestResult -Number 8 -Name "E2E Sponsor onboarding" -Passed $false -Detail $_.Exception.Message
+    }
+
+    # E2E 2: Sandbox payment
+    try {
+        if (-not $sponsorToken) { throw "Skipped: sponsor token missing from E2E 1" }
+        $headers = @{ Authorization = "Bearer $sponsorToken" }
+        $initBody = @{ amountNaira = 5000; planName = "staging-sandbox" } | ConvertTo-Json
+        $init = Invoke-SmokeJson "$api/payments/initialize" -Method Post -Headers $headers -Body $initBody
+        $hookBody = @{
+            event = "charge.success"
+            data = @{ reference = $init.reference }
+        } | ConvertTo-Json -Depth 5
+        $hook = Invoke-SmokeJson "$api/payments/webhook" -Method Post -Body $hookBody
+        $passed = ($init.reference -ne $null) -and ($hook.subscription.isActive -eq $true) -and ($hook.subscription.allocatedVisits -ge 1)
+        Write-TestResult -Number 9 -Name "E2E Sandbox payment" -Passed $passed `
+            -Detail "ref=$($init.reference), active=$($hook.subscription.isActive), visits=$($hook.subscription.allocatedVisits)"
+    }
+    catch {
+        Write-TestResult -Number 9 -Name "E2E Sandbox payment" -Passed $false -Detail $_.Exception.Message
+    }
+
+    # E2E 3: CHW registration + early 403
+    try {
+        $chwEmail = "e2e-chw-$stamp@myndora.demo"
+        $chwRegBody = @{
+            email = $chwEmail
+            password = "StagingPass1!"
+            role = "CHW"
+            fullName = "E2E CHW $stamp"
+            attachmentPaths = @("/tmp/id-card.pdf", "/tmp/training-cert.pdf")
+        } | ConvertTo-Json
+        $chwReg = Invoke-SmokeJson "$api/auth/register" -Method Post -Body $chwRegBody
+        $chwToken = $chwReg.accessToken
+        $chwProfileId = $chwReg.chwProfile.id
+        $level = $chwReg.chwProfile.activationLevel
+        $denied = $false
+        $denyDetail = ""
+        try {
+            $chwHeaders = @{ Authorization = "Bearer $chwToken" }
+            $denyBody = @{
+                patientId = $(if ($patientId) { $patientId } else { $PatientId })
+                sponsorId = $(if ($sponsorId) { $sponsorId } else { $SponsorId })
+                scheduledTime = (Get-Date).ToUniversalTime().ToString("o")
+                checklistResponses = @{ medication_taken = $true }
+                temperatureCelsius = 36.6
+            } | ConvertTo-Json -Depth 5
+            Invoke-SmokeJson "$api/physical-visits" -Method Post -Headers $chwHeaders -Body $denyBody | Out-Null
+            $denyDetail = "expected 403 but request succeeded"
+        }
+        catch {
+            $status = $null
+            if ($_.Exception.Response) {
+                $status = [int]$_.Exception.Response.StatusCode
+            }
+            $denied = ($status -eq 403) -or ($_.Exception.Message -match "403|Forbidden|activation level")
+            $denyDetail = "status=$status msg=$($_.Exception.Message)"
+        }
+        $passed = ($level -eq "PENDING_REVIEW") -and $denied
+        Write-TestResult -Number 10 -Name "E2E CHW registration PENDING_REVIEW" -Passed $passed `
+            -Detail "level=$level, earlyVisitBlocked=$denied ($denyDetail)"
+    }
+    catch {
+        Write-TestResult -Number 10 -Name "E2E CHW registration PENDING_REVIEW" -Passed $false -Detail $_.Exception.Message
+    }
+
+    # E2E 4: Admin activation
+    try {
+        if (-not $chwProfileId) { throw "Skipped: chwProfileId missing from E2E 3" }
+        $adminHeaders = @{ Authorization = "Bearer $AdminToken" }
+        $actBody = @{
+            chwProfileId = $chwProfileId
+            activationLevel = "HOME_VISIT_APPROVED"
+            identityVerified = $true
+            trainingCompleted = $true
+            referencesChecked = $true
+            ninStatus = $true
+            vettingScorecard = @{
+                identityDocument = 5
+                ninVerification = 5
+                referenceOne = 4
+                referenceTwo = 5
+                trainingCompetency = 5
+                coordinatorNotes = "E2E coordinator call log - all references verified"
+            }
+        } | ConvertTo-Json -Depth 5
+        $activated = Invoke-SmokeJson "$api/chw/activation" -Method Patch -Headers $adminHeaders -Body $actBody
+        $passed = ($activated.activationLevel -eq "HOME_VISIT_APPROVED") -and ($null -ne $activated.vettingScorecard)
+        Write-TestResult -Number 11 -Name "E2E Admin CHW activation" -Passed $passed `
+            -Detail "chwProfile=$chwProfileId, level=$($activated.activationLevel), scorecard=$([bool]$activated.vettingScorecard)"
+    }
+    catch {
+        Write-TestResult -Number 11 -Name "E2E Admin CHW activation" -Passed $false -Detail $_.Exception.Message
+    }
+
+    # E2E 5a: Consent OTP gate then field op + urgent temp alert + Template C
+    try {
+        if (-not $chwToken -or -not $patientId -or -not $sponsorId -or -not $sponsorToken) {
+            throw "Skipped: missing chw/patient/sponsor from prior E2E steps"
+        }
+        $sponsorHeaders = @{ Authorization = "Bearer $sponsorToken" }
+        $otpReq = Invoke-SmokeJson "$api/patients/$patientId/consent/request" -Method Post -Headers $sponsorHeaders -Body (@{ channel = "WHATSAPP" } | ConvertTo-Json)
+        if (-not $otpReq.devCode) { throw "Expected mock devCode when MOCK_AT=true" }
+        $otpVerify = Invoke-SmokeJson "$api/patients/$patientId/consent/verify" -Method Post -Headers $sponsorHeaders -Body (@{ code = $otpReq.devCode } | ConvertTo-Json)
+        if ($otpVerify.consentStatus -ne $true) { throw "Consent verify did not flip consentStatus" }
+
+        $chwHeaders = @{ Authorization = "Bearer $chwToken" }
+        $visitBody = @{
+            patientId = $patientId
+            sponsorId = $sponsorId
+            scheduledTime = (Get-Date).ToUniversalTime().ToString("o")
+            checklistResponses = @{ medication_taken = $true; urgent_screen = $true }
+            temperatureCelsius = 39.1
+            systolicBp = 120
+            diastolicBp = 80
+        } | ConvertTo-Json -Depth 5
+        $flagged = Invoke-SmokeJson "$api/physical-visits" -Method Post -Headers $chwHeaders -Body $visitBody
+        $adminHeaders = @{ Authorization = "Bearer $AdminToken" }
+        $queue = @(Invoke-SmokeJson "$api/escalations/review-queue" -Headers $adminHeaders)
+        $caseId = $flagged.escalation.id
+        $inQueue = @($queue | Where-Object { $_.id -eq $caseId }).Count -ge 1
+        $msg = [string]$flagged.sponsorNotification.message
+        $passed = ($flagged.escalation.severity -eq "URGENT") -and ($msg -match "Template C") -and $inQueue
+        Write-TestResult -Number 12 -Name "E2E Field op urgent alert + Template C" -Passed $passed `
+            -Detail "consent=True, severity=$($flagged.escalation.severity), template=$($msg.Substring(0, [Math]::Min(80, $msg.Length))), inQueue=$inQueue"
+    }
+    catch {
+        Write-TestResult -Number 12 -Name "E2E Field op urgent alert + Template C" -Passed $false -Detail $_.Exception.Message
+    }
+}
+
 function Write-Summary {
     Write-Host ""
     Write-Host "=== Summary ===" -ForegroundColor Cyan
@@ -252,7 +461,7 @@ function Write-Summary {
     }
 
     Write-Host ""
-    Write-Host "All smoke tests passed." -ForegroundColor Green
+    Write-Host "All smoke + E2E tests passed." -ForegroundColor Green
 }
 
 # --- Main ---
@@ -279,4 +488,5 @@ if (-not $BaseUrl) {
 }
 
 Invoke-SmokeTests -Origin $BaseUrl
+Invoke-E2ELifecycleTests -Origin $BaseUrl
 Write-Summary

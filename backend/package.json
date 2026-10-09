@@ -38,6 +38,6 @@
     "node": ">=20"
   },
   "prisma": {
-    "seed": "ts-node src/database/seed.ts"
+    "seed": "node dist/database/seed.js"
   }
 }

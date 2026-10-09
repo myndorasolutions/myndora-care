@@ -7,6 +7,7 @@ import { RiskBadge } from '@/components/ui/RiskBadge';
 import { StatCard } from '@/components/ui/StatCard';
 import { getApiBaseUrl } from '@/lib/api';
 import { mockApi } from '@/lib/mockApi';
+import { vitalsApi } from '@/lib/vitalsApi';
 import type { AdminAlert } from '@/lib/types';
 
 export function AdminDashboardPage() {
@@ -26,13 +27,13 @@ export function AdminDashboardPage() {
     queryKey: ['admin', 'remote-check-rows'],
     queryFn: () => mockApi.getRemoteCheckRows(),
   });
-  const { data: visitProofRows = [] } = useQuery({
+  const { data: visitProofRows = [], isError: visitProofsError } = useQuery({
     queryKey: ['admin', 'visit-proofs'],
-    queryFn: () => mockApi.getVisitProofRows(),
+    queryFn: () => vitalsApi.getAdminVisitProofs(),
   });
-  const { data: syncQueue = [] } = useQuery({
+  const { data: syncQueue = [], isError: syncQueueError } = useQuery({
     queryKey: ['admin', 'sync-queue'],
-    queryFn: () => mockApi.getSyncQueueRows(),
+    queryFn: () => vitalsApi.getAdminSyncQueue(),
   });
   const { data: initialAlerts = [] } = useQuery({
     queryKey: ['admin', 'alerts'],
@@ -63,16 +64,21 @@ export function AdminDashboardPage() {
     <>
       <PageHeader
         title="Care coordinator overview"
-        subtitle="Pilot data — API wiring next sprint for KPIs below; clinician review is live"
+        subtitle="Visit proofs and clinician review read live physical visits and escalations"
       />
       <p className="mb-6 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-600">
-        Sponsor profiles, remote checks, visit proofs, and sync queue use pilot mock data. The
-        Clinician Reviewer panel below reads from the live vitals API.
+        Sponsor profiles and remote-check KPIs still use pilot mock data. Visit proofs, sync
+        queue, and the Clinician Reviewer panel below are live from the API.
       </p>
+      {(visitProofsError || syncQueueError) && (
+        <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
+          Some live visit data could not be loaded. Check API connectivity and admin auth.
+        </p>
+      )}
       {isLoading ? (
         <p className="text-slate-500">Loading KPIs…</p>
       ) : (
-        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {kpis.map((k) => (
             <StatCard key={k.label} label={k.label} value={k.value} hint={k.change} />
           ))}
@@ -104,7 +110,7 @@ export function AdminDashboardPage() {
 
       <section className="mb-8">
         <h2 className="mb-3 text-lg font-semibold">Remote check KPIs</h2>
-        <div className="mb-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {remoteCheckStats.map((stat) => (
             <StatCard key={stat.label} label={stat.label} value={stat.value} />
           ))}
@@ -193,8 +199,11 @@ export function AdminDashboardPage() {
         <h2 className="mb-3 text-lg font-semibold">Live alert feed</h2>
         <ul className="space-y-2">
           {alerts.map((a) => (
-            <li key={a.id} className="card flex items-start justify-between gap-4 py-3">
-              <div>
+            <li
+              key={a.id}
+              className="card flex flex-col gap-3 py-3 sm:flex-row sm:items-start sm:justify-between"
+            >
+              <div className="min-w-0">
                 <p className="font-medium">{a.patient_name}</p>
                 <p className="text-sm text-slate-600">{a.message}</p>
               </div>

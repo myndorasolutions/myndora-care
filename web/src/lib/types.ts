@@ -1,6 +1,7 @@
 export type UserRole =
   | 'patient'
   | 'caregiver'
+  | 'sponsor'
   | 'home_helper'
   | 'chw'
   | 'pharmacy'
@@ -17,6 +18,8 @@ export interface UserProfile {
   full_name: string;
   role: UserRole;
   phone?: string;
+  city?: string;
+  pricingZone?: string;
 }
 
 export interface VitalReading {
@@ -118,6 +121,7 @@ export interface VisitProofRow {
   recorded_at: string;
   signature_state: 'captured' | 'pending' | 'n/a';
   otp_state: 'confirmed' | 'pending' | 'n/a';
+  status?: string;
 }
 
 export interface SyncQueueRow {

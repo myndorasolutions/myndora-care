@@ -38,7 +38,7 @@ export function CaregiverVitalsPage() {
           <label className="label">Patient ID</label>
           <input className="input" value={patientId} onChange={(e) => setPatientId(e.target.value)} />
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="label">Systolic</label>
             <input className="input" type="number" value={systolic} onChange={(e) => setSystolic(e.target.value)} />

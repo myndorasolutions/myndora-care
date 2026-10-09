@@ -1,0 +1,25 @@
+[
+  {
+    "name": "keep-sim-tagged",
+    "action": { "type": "Keep" },
+    "condition": {
+      "tagState": "TAGGED",
+      "tagPrefixes": ["sim-"]
+    }
+  },
+  {
+    "name": "keep-recent-5",
+    "action": { "type": "Keep" },
+    "mostRecentVersions": {
+      "keepCount": 5
+    }
+  },
+  {
+    "name": "delete-untagged-7d",
+    "action": { "type": "Delete" },
+    "condition": {
+      "tagState": "UNTAGGED",
+      "olderThan": "604800s"
+    }
+  }
+]

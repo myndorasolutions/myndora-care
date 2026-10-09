@@ -1,29 +1,30 @@
 # Multi-stage build — dockerContext: . (repo root); COPY paths prefixed with backend/
+# Step 1: Build stage
 FROM node:20-alpine AS builder
-
 WORKDIR /app
+RUN npm install -g pnpm
+COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml ./
+COPY backend/package.json ./backend/
+RUN pnpm install --no-frozen-lockfile
+COPY . .
 
-COPY backend/package.json backend/package-lock.json ./
-COPY backend/prisma ./prisma/
-COPY backend/src ./src/
-COPY backend/tsconfig.json backend/tsconfig.build.json backend/nest-cli.json ./
+# CRITICAL FIX: Generate the Prisma schema artifacts before building NestJS
+WORKDIR /app/backend
+RUN pnpm exec prisma generate
 
-RUN npm ci && npx prisma generate && npm run build
+RUN pnpm run build
 
-FROM node:20-alpine AS runner
-
+# Step 2: Execution stage
+FROM node:20-alpine
 WORKDIR /app
+RUN npm install -g pnpm
+COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml ./
+COPY backend/package.json ./backend/
+RUN pnpm install --prod --no-frozen-lockfile
 
-ENV NODE_ENV=production
-
-COPY backend/package.json backend/package-lock.json ./
-COPY backend/prisma ./prisma/
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-
+# Copy generated Prisma engine binaries along with standard build distributions
+COPY --from=builder /app/node_modules/.pnpm /app/node_modules/.pnpm
+COPY --from=builder /app/backend/dist ./backend/dist
 EXPOSE 8080
-
-HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-  CMD wget -qO- "http://127.0.0.1:${PORT:-8080}/api/v1/health" || exit 1
-
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
+ENV PORT=8080
+CMD ["node", "backend/dist/main.js"]

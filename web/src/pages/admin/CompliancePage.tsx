@@ -12,9 +12,12 @@ export function AdminCompliancePage() {
       <PageHeader title="Compliance" subtitle="Regulatory checklist" />
       <ul className="space-y-3">
         {items.map((item) => (
-          <li key={item.title} className="card flex justify-between gap-4">
-            <span className="font-medium">{item.title}</span>
-            <span className={`text-sm ${item.status === 'current' ? 'text-success' : 'text-warning'}`}>
+          <li
+            key={item.title}
+            className="card flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <span className="min-w-0 font-medium">{item.title}</span>
+            <span className={`shrink-0 text-sm ${item.status === 'current' ? 'text-success' : 'text-warning'}`}>
               {item.status} · {item.due}
             </span>
           </li>

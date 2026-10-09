@@ -1,4 +1,4 @@
-import { PageHeader } from '@/components/ui/PageHeader';
+import { Badge, Card, PageHeader } from '@/components/kit';
 
 const meds = [
   { name: 'Amlodipine 5mg', schedule: 'Once daily · morning', next_refill: '2026-05-22' },
@@ -7,17 +7,26 @@ const meds = [
 
 export function PatientMedicationsPage() {
   return (
-    <>
-      <PageHeader title="Medications" subtitle="Active prescriptions" />
+    <div data-theme="patient">
+      <PageHeader title="Medications" subtitle="Active prescriptions (demo list)" />
       <ul className="space-y-3">
         {meds.map((m) => (
-          <li key={m.name} className="card">
-            <p className="font-semibold">{m.name}</p>
-            <p className="text-sm text-slate-500">{m.schedule}</p>
-            <p className="mt-2 text-xs text-primary">Next refill: {m.next_refill}</p>
+          <li key={m.name}>
+            <Card>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p className="font-bold text-slate-900">{m.name}</p>
+                  <p className="text-sm text-slate-500">{m.schedule}</p>
+                </div>
+                <Badge tone="green">Active</Badge>
+              </div>
+              <p className="mt-3 text-xs font-semibold text-[var(--role-accent,var(--green))]">
+                Next refill: {m.next_refill}
+              </p>
+            </Card>
           </li>
         ))}
       </ul>
-    </>
+    </div>
   );
 }

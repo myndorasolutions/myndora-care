@@ -27,11 +27,11 @@ export function DataTable<T extends object>({
 
   return (
     <div className="card overflow-x-auto p-0">
-      <table className="w-full text-left text-sm">
+      <table className="w-full min-w-[36rem] text-left text-sm">
         <thead className="border-b border-slate-200 bg-slate-50">
           <tr>
             {columns.map((col) => (
-              <th key={col.key} className="px-4 py-3 font-semibold text-slate-600">
+              <th key={col.key} className="whitespace-nowrap px-4 py-3 font-semibold text-slate-600">
                 {col.header}
               </th>
             ))}

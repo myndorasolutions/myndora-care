@@ -27,6 +27,14 @@ export async function apiFetch<T>(
   const res = await fetch(`${baseUrl}${path}`, { ...options, headers });
 
   if (!res.ok) {
+    if (res.status === 401) {
+      useAuthStore.getState().logout();
+      const pathName = window.location.pathname;
+      if (pathName !== '/login' && pathName !== '/') {
+        window.location.assign('/login');
+      }
+    }
+
     let body: unknown;
     try {
       body = await res.json();

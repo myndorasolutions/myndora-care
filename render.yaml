@@ -1,29 +1,26 @@
-# Render Blueprint — Myndora Care API + PostgreSQL
+# Render Blueprint — simulation API (free tier)
 # https://render.com/docs/blueprint-spec
-
-databases:
-  - name: myndora-care-postgres-prod
-    plan: free
-    databaseName: myndora_care
-    user: myndora
+# Set DATABASE_URL and DIRECT_URL in the Render dashboard before the first deploy.
+# Production stays on Cloud Run; this service is for zero-cost testing only.
 
 services:
   - type: web
-    name: myndora-care-backend
-    runtime: docker
+    name: myndora-backend-sim
+    runtime: node
     plan: free
-    region: oregon
-    dockerContext: .
-    dockerfilePath: backend/Dockerfile
+    region: frankfurt
+    rootDir: backend
+    buildCommand: npm install --include=dev && if [ -z "$DATABASE_URL" ]; then export DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build"; fi && if [ -z "$DIRECT_URL" ]; then export DIRECT_URL="$DATABASE_URL"; fi && npx prisma generate && npm run build
+    startCommand: npm run start:prod
     healthCheckPath: /api/v1/health
     envVars:
       - key: NODE_ENV
         value: production
-      - key: APP_ENV
-        value: production
+      - key: ENVIRONMENT
+        value: simulation
+      - key: MOCK_PAYSTACK
+        value: "true"
       - key: DATABASE_URL
-        fromDatabase:
-          name: myndora-care-postgres-prod
-          property: connectionString
-      - key: CORS_ORIGINS
+        sync: false
+      - key: DIRECT_URL
         sync: false

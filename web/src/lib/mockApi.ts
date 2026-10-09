@@ -64,7 +64,7 @@ const pilotRoleMap: Record<
   { email: string; full_name: string; role: UserProfile['role'] }
 > = {
   chw: { email: 'chw@myndora.demo', full_name: 'Amina Bello', role: 'chw' },
-  sponsor: { email: 'sponsor@myndora.demo', full_name: 'Tunde Okafor', role: 'caregiver' },
+  sponsor: { email: 'sponsor@myndora.demo', full_name: 'Tunde Okafor', role: 'sponsor' },
   coordinator: {
     email: 'coordinator@myndora.demo',
     full_name: 'Care Coordinator',

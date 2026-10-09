@@ -20,9 +20,6 @@ export class DevAuthGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ]);
-    if (isPublic) {
-      return true;
-    }
 
     const request = context.switchToHttp().getRequest<Request & { user?: AuthUser }>();
     const authHeader = request.headers.authorization ?? '';
@@ -30,12 +27,24 @@ export class DevAuthGuard implements CanActivate {
       ? authHeader.slice(7)
       : authHeader;
 
+    if (token) {
+      request.user = this.parseMockToken(token);
+    }
+
+    if (isPublic) {
+      return true;
+    }
+
     if (!token) {
       throw new UnauthorizedException('Missing bearer token');
     }
 
-    const user = this.parseMockToken(token);
-    request.user = user;
+    const user = request.user!;
+    if (!user.isVerified) {
+      throw new UnauthorizedException(
+        'Account not verified. Complete OTP verification before accessing the API.',
+      );
+    }
 
     const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(ROLES_KEY, [
       context.getHandler(),
@@ -57,35 +66,56 @@ export class DevAuthGuard implements CanActivate {
         userId: `dev-${roleKey}`,
         email: `${roleKey}@myndora.demo`,
         role,
+        isVerified: true,
       };
     }
 
     try {
       const payload = JSON.parse(
         Buffer.from(token.split('.')[0] ?? token, 'base64url').toString('utf8'),
-      ) as { uid?: string; email?: string; role?: string };
+      ) as {
+        uid?: string;
+        email?: string | null;
+        role?: string;
+        verified?: boolean;
+      };
       return {
         userId: payload.uid ?? 'dev-chw',
-        email: payload.email ?? 'chw@myndora.demo',
+        email: payload.email ?? null,
         role: this.toUserRole(payload.role ?? 'chw'),
+        isVerified: payload.verified !== false,
       };
     } catch {
       return {
-        userId: 'dev-playtest',
-        email: 'playtest@myndora.demo',
-        role: UserRole.chw,
+        userId: 'dev-chw',
+        email: 'chw@myndora.demo',
+        role: UserRole.CHW,
+        isVerified: true,
       };
     }
   }
 
   private toUserRole(value: string): UserRole {
-    const normalized = value.toLowerCase();
+    const normalized = value.toUpperCase().replace(/-/g, '_');
+    const aliases: Record<string, UserRole> = {
+      CLINICIAN: UserRole.CLINICIAN_REVIEWER,
+      CLINICIAN_REVIEWER: UserRole.CLINICIAN_REVIEWER,
+      COORDINATOR: UserRole.ADMIN,
+      SPONSOR: UserRole.SPONSOR,
+      PATIENT: UserRole.PATIENT,
+      CAREGIVER: UserRole.CAREGIVER,
+      CHW: UserRole.CHW,
+      ADMIN: UserRole.ADMIN,
+    };
+
+    if (aliases[normalized]) {
+      return aliases[normalized];
+    }
+
     if (Object.values(UserRole).includes(normalized as UserRole)) {
       return normalized as UserRole;
     }
-    if (normalized === 'sponsor' || normalized === 'coordinator') {
-      return normalized === 'coordinator' ? UserRole.admin : UserRole.caregiver;
-    }
-    return UserRole.chw;
+
+    return UserRole.CHW;
   }
 }

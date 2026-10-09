@@ -7,6 +7,9 @@
       "hosting": {
         "myndora-care": [
           "project-681c9d16-2470-459b-8a1"
+        ],
+        "myndora-care-simulation": [
+          "myndora-care-simulation"
         ]
       }
     },

@@ -1,408 +1,409 @@
-// Myndora Care — PostgreSQL schema (Product Guide + Cursor Prompt)
+// Myndora Care — MVP structural loop schema
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
-// --- Enums ---
-
+/// Core Role Matrix for Platform Access Controls
 enum UserRole {
-  patient
-  caregiver
-  home_helper
-  chw
-  pharmacy
-  clinician
-  lab
-  admin
-  super_admin
+  SPONSOR
+  PATIENT
+  CAREGIVER
+  CHW
+  ADMIN
+  CLINICIAN_REVIEWER
 }
 
-enum VitalSourceType {
-  patient_self
-  caregiver_entry
-  home_helper_entry
-  chw_visit
-  pharmacy_walk_in
-  community_screening
+/// CHW Progression and Rigorous Activation Levels
+enum ChwActivationLevel {
+  PENDING_REVIEW
+  IDENTITY_VERIFIED
+  REMOTE_CHECK_APPROVED
+  HOME_VISIT_APPROVED
+  SENIOR_FIELD_LEAD
+  SUSPENDED
 }
 
-enum CaptureLocationType {
-  home
-  pharmacy
-  community_event
-  clinic
-  unknown
+/// Consolidated Universal Lifecycle States for Remote Checks & In-Person Visits
+enum ServiceStatus {
+  SCHEDULED
+  ATTEMPTED
+  CONNECTED
+  IN_PROGRESS
+  CHECKLIST_COMPLETED
+  PENDING_CONFIRMATION
+  COMPLETED_VERIFIED
+  COMPLETED_UNVERIFIED
+  FAILED_NO_ANSWER
+  NEEDS_REVIEW
+  ESCALATED
+  CLOSED
+  MISSED
 }
 
-enum ConditionType {
-  hypertension
-  diabetes
-  both
-}
-
-enum RiskStatus {
-  green
-  yellow
-  red
-}
-
-enum AlertType {
-  high_bp
-  high_glucose
-  missed_reading
-  missed_medication
-  symptom_escalation
-}
-
+/// Configurable Severity Triggers for Vital Flagging and Clinical Response Routing
 enum AlertSeverity {
-  yellow
-  red
+  NORMAL
+  CAUTION
+  URGENT
+  NEEDS_REVIEW
 }
 
-enum AlertStatus {
-  open
-  assigned
-  resolved
-  escalated
+/// Framework 2 Dual-Zone regional pricing
+enum PricingZone {
+  ZONE_A
+  ZONE_B
 }
-
-enum ConsentStatus {
-  pending
-  approved
-  revoked
-}
-
-enum ConsentType {
-  caregiver
-  home_helper
-  data_export
-}
-
-enum ConsentRecordStatus {
-  active
-  revoked
-}
-
-enum SubscriptionPlan {
-  free_check
-  basic_monitor
-  family_care
-  assisted_care
-  premium_chronic
-}
-
-enum SubscriptionStatus {
-  active
-  expired
-  cancelled
-  trial
-}
-
-enum MedicationType {
-  otc
-  prescription
-  controlled
-}
-
-enum PrescriptionStatus {
-  active
-  expired
-  cancelled
-}
-
-enum ProviderType {
-  chw
-  pharmacy
-  clinician
-  lab
-}
-
-enum VerificationStatus {
-  pending
-  verified
-  suspended
-}
-
-enum ServiceJobStatus {
-  booked
-  accepted
-  declined
-  in_progress
-  completed_pending
-  released
-  disputed
-  cancelled
-  refunded
-}
-
-enum EscrowStatus {
-  initialized
-  paid_held
-  accepted
-  completed_pending_confirmation
-  released
-  disputed
-  refunded
-}
-
-enum PaymentType {
-  subscription
-  service
-  refund
-}
-
-enum PaymentStatus {
-  pending
-  success
-  failed
-  refunded
-}
-
-enum PayoutStatus {
-  pending
-  processing
-  completed
-  failed
-}
-
-enum PharmacyRefillStatus {
-  requested
-  approved
-  ready
-  fulfilled
-  cancelled
-}
-
-enum CHWVisitType {
-  routine
-  urgent
-  missed_reading_followup
-}
-
-enum LabOrderStatus {
-  ordered
-  scheduled
-  sample_collected
-  resulted
-  abnormal_flagged
-}
-
-enum DisputeStatus {
-  open
-  under_review
-  resolved_refund
-  resolved_release
-  closed
-}
-
-enum PolicyViolationType {
-  off_platform_solicitation
-  prescription_bypass
-  identity_fraud
-}
-
-enum PolicyViolationStatus {
-  pending_review
-  actioned
-  dismissed
-}
-
-enum MessagePolicyAction {
-  blocked
-  warned
-  logged
-}
-
-enum NotificationChannel {
-  sms
-  whatsapp
-  push
-  in_app
-}
-
-enum NotificationStatus {
-  queued
-  sent
-  failed
-  delivered
-}
-
-
-enum ClinicalReviewStatus {
-  needs_review
-  reviewed
-  closed
-}
-
-// --- Identity & RBAC ---
 
 model User {
-  id                 String    @id @default(cuid())
-  firebaseUid        String    @unique @map("firebase_uid")
-  email              String    @unique
-  phone              String
-  role               UserRole
-  fullName           String    @map("full_name")
-  languagePreference String    @default("en") @map("language_preference")
-  isActive           Boolean   @default(true) @map("is_active")
-  mfaEnabled         Boolean   @default(false) @map("mfa_enabled")
-  lastLogin          DateTime? @map("last_login")
-  createdAt          DateTime  @default(now()) @map("created_at")
-  updatedAt          DateTime  @updatedAt @map("updated_at")
+  id           String   @id @default(uuid())
+  email        String?  @unique
+  phoneNumber  String?  @unique @map("phone_number")
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(SPONSOR)
+  isVerified   Boolean  @default(false) @map("is_verified")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
-  patientProfile              Patient?
-  caregiverLinks              CaregiverPatient[] @relation("CaregiverUser")
-  vitalsCaptured              Vital[]            @relation("CapturedBy")
-  consentGranted              ConsentRecord[]    @relation("ConsentGrantee")
-  patientsAssignedChw         Patient[]          @relation("AssignedCHW")
-  patientsAssignedPharmacy    Patient[]          @relation("AssignedPharmacy")
-  patientsAssignedClinician   Patient[]          @relation("AssignedClinician")
+  sponsor        Sponsor?
+  chw            ChwProfile?
+  auditLogs      AuditLog[]
+  otpChallenges  AuthOtpChallenge[]
 
-  @@index([role])
   @@map("users")
 }
 
-model Patient {
-  id                    String             @id @default(cuid())
-  userId                String             @unique @map("user_id")
-  fullName              String             @map("full_name")
-  age                   Int
-  gender                String
-  dob                   DateTime?
-  city                  String
-  state                 String
-  lga                   String
-  address               String?
-  lat                   Float?
-  lng                   Float?
-  conditions            ConditionType[]
-  emergencyContactName  String             @map("emergency_contact_name")
-  emergencyContactPhone String             @map("emergency_contact_phone")
-  emergencyRelationship String             @map("emergency_relationship")
-  subscriptionPlan      SubscriptionPlan?  @map("subscription_plan")
-  subscriptionStatus    SubscriptionStatus @default(trial) @map("subscription_status")
-  subscriptionExpiresAt DateTime?          @map("subscription_expires_at")
-  assignedChwId         String?            @map("assigned_chw_id")
-  assignedPharmacyId    String?            @map("assigned_pharmacy_id")
-  assignedClinicianId   String?            @map("assigned_clinician_id")
-  isActive              Boolean            @default(true) @map("is_active")
-  createdAt             DateTime           @default(now()) @map("created_at")
-  updatedAt             DateTime           @updatedAt @map("updated_at")
+model AuthOtpChallenge {
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  codeHash   String    @map("code_hash")
+  channel    String    @default("SMS")
+  expiresAt  DateTime  @map("expires_at")
+  verifiedAt DateTime? @map("verified_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
 
-  user              User               @relation(fields: [userId], references: [id])
-  assignedChw       User?              @relation("AssignedCHW", fields: [assignedChwId], references: [id])
-  assignedPharmacy  User?              @relation("AssignedPharmacy", fields: [assignedPharmacyId], references: [id])
-  assignedClinician User?              @relation("AssignedClinician", fields: [assignedClinicianId], references: [id])
-  caregiverLinks    CaregiverPatient[]
-  authorizedHelpers AuthorizedHelper[]
-  vitals            Vital[]
-  chwVisits         CHWVisit[]
-  consentRecords    ConsentRecord[]
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("auth_otp_challenges")
+}
+
+model Sponsor {
+  id                     String       @id @default(uuid())
+  userId                 String       @unique @map("user_id")
+  fullName               String       @map("full_name")
+  country                String       @default("Nigeria")
+  city                   String?
+  pricingZone            PricingZone? @map("pricing_zone")
+  notificationPreference String       @default("ALL") @map("notification_preference")
+  createdAt              DateTime     @default(now()) @map("created_at")
+  updatedAt              DateTime     @updatedAt @map("updated_at")
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  patients       Patient[]
+  subscriptions  Subscription[]
+  remoteChecks   RemoteCheck[]
+  physicalVisits PhysicalVisit[]
+  disputes       Dispute[]
+
+  @@map("sponsors")
+}
+
+model Patient {
+  id                String       @id @default(uuid())
+  sponsorId         String       @map("sponsor_id")
+  fullName          String       @map("full_name")
+  dateOfBirth       DateTime     @map("date_of_birth")
+  gender            String
+  address           String
+  phoneNumber       String?      @map("phone_number")
+  city              String?
+  pricingZone       PricingZone? @map("pricing_zone")
+  preferredLanguage String       @default("English") @map("preferred_language")
+  emergencyContact  Json         @map("emergency_contact")
+  caregiverDetails  Json?        @map("caregiver_details")
+  conditionTags     String[]     @map("condition_tags")
+  medications       String[]     @default([])
+  consentStatus     Boolean      @default(false) @map("consent_status")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
+
+  sponsor           Sponsor                   @relation(fields: [sponsorId], references: [id], onDelete: Cascade)
+  remoteChecks      RemoteCheck[]
+  physicalVisits    PhysicalVisit[]
+  consentChallenges PatientConsentChallenge[]
 
   @@map("patients")
 }
 
-model CaregiverPatient {
-  id               String        @id @default(cuid())
-  caregiverUserId  String        @map("caregiver_user_id")
-  patientId        String        @map("patient_id")
-  consentStatus    ConsentStatus @default(pending) @map("consent_status")
-  consentGrantedAt DateTime?     @map("consent_granted_at")
-  consentRevokedAt DateTime?     @map("consent_revoked_at")
-  relationship     String
-  createdAt        DateTime      @default(now()) @map("created_at")
-
-  caregiver User    @relation("CaregiverUser", fields: [caregiverUserId], references: [id])
-  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
-
-  @@unique([caregiverUserId, patientId])
-  @@map("caregivers_patients")
-}
-
-model AuthorizedHelper {
-  id            String        @id @default(cuid())
-  patientId     String        @map("patient_id")
-  helperName    String        @map("helper_name")
-  phone         String
-  relationship  String
-  consentStatus ConsentStatus @default(pending) @map("consent_status")
-  createdAt     DateTime      @default(now()) @map("created_at")
+model PatientConsentChallenge {
+  id         String    @id @default(uuid())
+  patientId  String    @map("patient_id")
+  codeHash   String    @map("code_hash")
+  channel    String    @default("SMS")
+  expiresAt  DateTime  @map("expires_at")
+  verifiedAt DateTime? @map("verified_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
 
   patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
-  @@index([patientId, phone])
-  @@map("authorized_helpers")
+  @@index([patientId])
+  @@map("patient_consent_challenges")
 }
 
-model ConsentRecord {
-  id              String              @id @default(cuid())
-  patientId       String              @map("patient_id")
-  grantedToUserId String              @map("granted_to_user_id")
-  consentType     ConsentType         @map("consent_type")
-  version         String
-  status          ConsentRecordStatus @default(active)
-  grantedAt       DateTime            @default(now()) @map("granted_at")
-  revokedAt       DateTime?           @map("revoked_at")
-  ipAddress       String?             @map("ip_address")
+model ChwProfile {
+  id                String             @id @default(uuid())
+  userId            String             @unique @map("user_id")
+  fullName          String             @map("full_name")
+  ninStatus         Boolean            @default(false) @map("nin_status")
+  identityVerified  Boolean            @default(false) @map("identity_verified")
+  referencesChecked Boolean            @default(false) @map("references_checked")
+  trainingCompleted Boolean            @default(false) @map("training_completed")
+  activationLevel   ChwActivationLevel @default(PENDING_REVIEW) @map("activation_level")
+  serviceAreas      String[]           @map("service_areas")
+  languagesSpoken   String[]           @map("languages_spoken")
+  ratingAverage     Float              @default(5.0) @map("rating_average")
+  /// Coordinator 5-point reference scorecard (identity, NIN, refs, training)
+  vettingScorecard  Json?              @map("vetting_scorecard")
+  deviceUid         String?            @map("device_uid")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
 
-  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  grantee   User    @relation("ConsentGrantee", fields: [grantedToUserId], references: [id])
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  remoteChecks   RemoteCheck[]
+  physicalVisits PhysicalVisit[]
 
-  @@map("consent_records")
+  @@map("chw_profiles")
 }
 
-model Vital {
-  id                  String              @id @default(cuid())
-  patientId           String              @map("patient_id")
-  systolicBp          Int?                @map("systolic_bp")
-  diastolicBp         Int?                @map("diastolic_bp")
-  pulse               Int?
-  glucoseFasting      Float?              @map("glucose_fasting")
-  glucoseRandom       Float?              @map("glucose_random")
-  weightKg            Float?              @map("weight_kg")
-  symptoms            String[]
-  medicationTaken     Boolean             @default(false) @map("medication_taken")
-  notes               String?
-  riskStatus          RiskStatus          @map("risk_status")
-  sourceType          VitalSourceType     @map("source_type")
-  capturedByUserId    String              @map("captured_by_user_id")
-  captureLocationType CaptureLocationType @map("capture_location_type")
-  patientConsented    Boolean             @default(true) @map("patient_consented")
-  clinicalReviewStatus ClinicalReviewStatus @default(needs_review) @map("clinical_review_status")
-  clinicianNotes       String?              @map("clinician_notes")
-  createdAt           DateTime            @default(now()) @map("created_at")
+model RemoteCheck {
+  id                     String        @id @default(uuid())
+  sponsorId              String        @map("sponsor_id")
+  patientId              String        @map("patient_id")
+  chwId                  String        @map("chw_id")
+  scheduledTime          DateTime      @map("scheduled_time")
+  actualStart            DateTime?     @map("actual_start")
+  actualEnd              DateTime?     @map("actual_end")
+  callMethod             String        @default("IN_APP") @map("call_method")
+  callDurationSeconds    Int           @default(0) @map("call_duration_seconds")
+  status                 ServiceStatus @default(SCHEDULED)
+  checklistResponses     Json          @map("checklist_responses")
+  medicationStatusNotes  String?       @map("medication_status_notes")
+  chwObservationNotes    String?       @map("chw_observation_notes")
+  patientConfirmationOtp String?       @map("patient_confirmation_otp")
+  isConfirmed            Boolean       @default(false) @map("is_confirmed")
+  createdAt              DateTime      @default(now()) @map("created_at")
+  updatedAt              DateTime      @updatedAt @map("updated_at")
 
-  patient     Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  capturedBy  User       @relation("CapturedBy", fields: [capturedByUserId], references: [id])
-  chwVisits   CHWVisit[]
+  sponsor     Sponsor          @relation(fields: [sponsorId], references: [id])
+  patient     Patient          @relation(fields: [patientId], references: [id])
+  chw         ChwProfile       @relation(fields: [chwId], references: [id])
+  escalations EscalationCase[]
+  disputes    Dispute[]
 
-  @@index([patientId, createdAt])
-  @@map("vitals")
+  @@map("remote_checks")
 }
 
-model CHWVisit {
-  id                String       @id @default(cuid())
-  patientId         String       @map("patient_id")
-  chwId             String       @map("chw_id")
-  jobId             String?      @map("job_id")
-  visitType         CHWVisitType @map("visit_type")
-  visitDate         DateTime     @map("visit_date")
-  vitalsCaptured    Boolean      @default(false) @map("vitals_captured")
-  vitalId           String?      @map("vital_id")
-  notes             String
-  escalated         Boolean      @default(false)
-  escalationReason  String?      @map("escalation_reason")
-  createdAt         DateTime     @default(now()) @map("created_at")
+model PhysicalVisit {
+  id                    String        @id @default(uuid())
+  sponsorId             String        @map("sponsor_id")
+  patientId             String        @map("patient_id")
+  chwId                 String        @map("chw_id")
+  scheduledTime         DateTime      @map("scheduled_time")
+  actualStart           DateTime?     @map("actual_start")
+  actualEnd             DateTime?     @map("actual_end")
+  status                ServiceStatus @default(SCHEDULED)
+  syncStatus            String        @default("SYNCED") @map("sync_status")
+  localOfflineTimestamp DateTime?     @map("local_offline_timestamp")
+  gpsLatitude           Float?        @map("gps_latitude")
+  gpsLongitude          Float?        @map("gps_longitude")
+  patientSignatureUrl   String?       @map("patient_signature_url")
+  consentedPhotoUrl     String?       @map("consented_photo_url")
+  verificationOtp       String?       @map("verification_otp")
+  systolicBp            Int?          @map("systolic_bp")
+  diastolicBp           Int?          @map("diastolic_bp")
+  pulseRate             Int?          @map("pulse_rate")
+  temperatureCelsius    Float?        @map("temperature_celsius")
+  bloodSugarMgDl        Float?        @map("blood_sugar_mg_dl")
+  oxygenSaturationPct   Float?        @map("oxygen_saturation_pct")
+  checklistResponses    Json          @map("checklist_responses")
+  chwObservationNotes   String?       @map("chw_observation_notes")
+  chwAttestationSigned  Boolean       @default(false) @map("chw_attestation_signed")
+  createdAt             DateTime      @default(now()) @map("created_at")
+  updatedAt             DateTime      @updatedAt @map("updated_at")
 
-  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  vital   Vital?  @relation(fields: [vitalId], references: [id])
+  sponsor     Sponsor          @relation(fields: [sponsorId], references: [id])
+  patient     Patient          @relation(fields: [patientId], references: [id])
+  chw         ChwProfile       @relation(fields: [chwId], references: [id])
+  escalations EscalationCase[]
+  disputes    Dispute[]
 
-  @@index([patientId, visitDate])
-  @@map("chw_visits")
+  @@map("physical_visits")
 }
 
+model EscalationCase {
+  id                 String         @id @default(uuid())
+  remoteCheckId      String?        @map("remote_check_id")
+  physicalVisitId    String?        @map("physical_visit_id")
+  triggerReason      String         @map("trigger_reason")
+  severity           AlertSeverity  @default(CAUTION)
+  assignedReviewerId String?        @map("assigned_reviewer_id")
+  coordinatorNotes   String?        @map("coordinator_notes")
+  clinicianNotes     String?        @map("clinician_notes")
+  resolutionOutcome  String?        @map("resolution_outcome")
+  isClosed           Boolean        @default(false) @map("is_closed")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+
+  remoteCheck   RemoteCheck?   @relation(fields: [remoteCheckId], references: [id])
+  physicalVisit PhysicalVisit? @relation(fields: [physicalVisitId], references: [id])
+
+  @@map("escalation_cases")
+}
+
+model Subscription {
+  id              String   @id @default(uuid())
+  sponsorId       String   @map("sponsor_id")
+  planName        String   @map("plan_name")
+  isActive        Boolean  @default(true) @map("is_active")
+  allocatedVisits Int      @map("allocated_visits")
+  usedVisits      Int      @default(0) @map("used_visits")
+  renewalDate     DateTime @map("renewal_date")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  sponsor  Sponsor   @relation(fields: [sponsorId], references: [id], onDelete: Cascade)
+  payments Payment[]
+
+  @@map("subscriptions")
+}
+
+model Payment {
+  id             String   @id @default(uuid())
+  sponsorId      String   @map("sponsor_id")
+  subscriptionId String   @map("subscription_id")
+  amount         Decimal  @db.Decimal(10, 2)
+  currency       String   @default("NGN")
+  reference      String   @unique
+  status         String
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id])
+
+  @@map("payments")
+}
+
+model Dispute {
+  id              String   @id @default(uuid())
+  sponsorId       String   @map("sponsor_id")
+  remoteCheckId   String?  @map("remote_check_id")
+  physicalVisitId String?  @map("physical_visit_id")
+  reason          String
+  evidenceNotes   String?  @map("evidence_notes")
+  adminResolution String?  @map("admin_resolution")
+  resolved        Boolean  @default(false)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  sponsor       Sponsor        @relation(fields: [sponsorId], references: [id])
+  remoteCheck   RemoteCheck?   @relation(fields: [remoteCheckId], references: [id])
+  physicalVisit PhysicalVisit? @relation(fields: [physicalVisitId], references: [id])
+
+  @@map("disputes")
+}
+
+model AudioPrompt {
+  id             String   @id @default(uuid())
+  promptKey      String   @map("prompt_key")
+  language       String   @default("Yoruba")
+  transcriptText String   @map("transcript_text")
+  audioUrl       String   @map("audio_url")
+  isApproved     Boolean  @default(false) @map("is_approved")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@map("audio_prompts")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorId     String   @map("actor_id")
+  action      String
+  entityName  String   @map("entity_name")
+  entityId    String?  @map("entity_id")
+  beforeState Json?    @map("before_state")
+  afterState  Json?    @map("after_state")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [actorId], references: [id])
+
+  @@index([entityName, entityId])
+  @@map("audit_logs")
+}
+
+/// Staging / simulation bug reports captured from the web feedback widget
+model FeedbackReport {
+  id               String   @id @default(uuid())
+  title            String
+  description      String
+  severity         String   @default("medium")
+  pageUrl          String   @map("page_url")
+  userAgent        String?  @map("user_agent")
+  role             String?
+  userId           String?  @map("user_id")
+  screenshotBase64 String?  @map("screenshot_base64") @db.Text
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@map("feedback_reports")
+}
+
+model ServiceCity {
+  id          String      @id @default(uuid())
+  name        String      @unique
+  pricingZone PricingZone @map("pricing_zone")
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  @@map("service_cities")
+}
+
+model SubscriptionPlanCatalog {
+  id              String   @id @default(uuid())
+  planKey         String   @unique @map("plan_key")
+  displayName     String   @map("display_name")
+  description     String
+  allocatedVisits Int      @default(0) @map("allocated_visits")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  zonePrices PlanZonePrice[]
+
+  @@map("subscription_plan_catalog")
+}
+
+model PlanZonePrice {
+  id                String      @id @default(uuid())
+  planId            String      @map("plan_id")
+  pricingZone       PricingZone @map("pricing_zone")
+  monthlyPriceNaira Int         @map("monthly_price_naira")
+  createdAt         DateTime    @default(now()) @map("created_at")
+
+  plan SubscriptionPlanCatalog @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, pricingZone])
+  @@map("plan_zone_prices")
+}
+
+model VisitRate {
+  id                            String      @id @default(uuid())
+  pricingZone                   PricingZone @unique @map("pricing_zone")
+  baseVisitNaira                Int         @map("base_visit_naira")
+  chwPayoutNaira                Int         @map("chw_payout_naira")
+  platformFeeNaira              Int         @map("platform_fee_naira")
+  distanceSurchargePer2kmNaira  Int         @map("distance_surcharge_per_2km_naira")
+  createdAt                     DateTime    @default(now()) @map("created_at")
+
+  @@map("visit_rates")
+}

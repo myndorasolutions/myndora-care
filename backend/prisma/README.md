@@ -1,28 +1,39 @@
 # Prisma schema notes
 
-The Prisma schema in `schema.prisma` currently models **7 active tables** used by the pilot API:
+The MVP schema in `schema.prisma` models the structural care loop:
 
-- `users`, `patients`, `caregivers_patients`, `authorized_helpers`, `consent_records`
-- `vitals`, `chw_visits`
+- `users`, `sponsors`, `patients`, `chw_profiles`
+- `remote_checks`, `physical_visits`, `escalation_cases`
+- `subscriptions`, `payments`, `disputes`, `audio_prompts`, `audit_logs` (deferred HTTP surface)
 
-## Migration history vs schema
+## Migration baseline (wipe rationale)
 
-The initial migration (`20250605000000_init`) created ~35 tables for the full product guide (alerts, payments, prescriptions, lab orders, disputes, etc.). Those tables may exist in the database but are **not yet wired** to NestJS controllers.
+Legacy pilot migrations (`20250605000000_init`, clinical review, interventions) were removed to avoid drift against the production MVP model. A single baseline migration (`20250710000000_mvp_structural_baseline`) replaces them.
 
-**Sprint scope:** only reconcile models needed for vitals sync, clinical review, and CHW visits. Full schema sync is deferred.
+**Do not** apply old migration folders to a fresh database — use only the MVP baseline.
 
-## Dormant tables (no API yet)
+## Supabase dual-URL pattern
 
-Examples from the init migration without corresponding Prisma models or services:
+```env
+# Pooler (Transaction mode, port 6543) — Cloud Run runtime
+DATABASE_URL=postgresql://...@...:6543/postgres?pgbouncer=true
 
-- `alerts`, `notifications`
-- `payments`, `payouts`, `escrow_holds`
-- `prescriptions`, `pharmacy_refills`
-- `lab_orders`, `service_jobs`
-- `disputes`, `policy_violations`
+# Direct (port 5432) — migrate/seed Cloud Run Job only
+DIRECT_URL=postgresql://...@...:5432/postgres
+```
 
-Do not drop these tables without a migration plan — they may be activated in future sprints.
+Prisma uses `DATABASE_URL` for queries and `directUrl` (`DIRECT_URL`) for migrations. Local Docker can set both to the same connection string.
+
+## Database initialization
+
+Migrations and seed run **out-of-band** via:
+
+- `scripts/run-db-init-job.ps1` (Cloud Run Job)
+- `scripts/launch-checklist.ps1 -SeedOnly` (local/staging)
+- `npx prisma migrate deploy && npx prisma db seed` with `DIRECT_URL` set
+
+The Cloud Run **web service** does not run migrate on boot.
 
 ## Seed
 
-Run `npx prisma db seed` after migrate to load playtest users and Grace Okafor patient data (`playtest-patient-grace`).
+`npx prisma db seed` loads playtest users, Grace Okafor patient, HOME_VISIT_APPROVED CHW, and a flagged physical visit for the escalation review queue.

@@ -1,0 +1,8 @@
+{
+  "name": "myndora-care-platform-root",
+  "private": true,
+  "packageManager": "pnpm@10.28.2",
+  "engines": {
+    "node": "22.x"
+  }
+}
