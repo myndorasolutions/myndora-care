@@ -2,6 +2,7 @@
   "name": "myndora-care-backend",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "npm@10.9.2",
   "scripts": {
     "build": "nest build",
     "start": "node dist/main.js",
