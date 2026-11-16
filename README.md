@@ -38,10 +38,10 @@ npm run dev
 The web admin deploys as the Worker `myndora-care` with OpenNext. Cloudflare should build before deploy:
 
 - Root directory: `apps/web-admin`
-- Build command: `npx opennextjs-cloudflare build`
+- Build command: `npm run build`
 - Deploy command: `npx wrangler deploy`
 
-`WORKER_SELF_REFERENCE` points at `myndora-care`. Incremental cache uses static assets, so no `NEXT_INC_CACHE_R2_BUCKET` binding is required. Local `npm run build` still runs `next build`.
+`npm run build` runs `opennextjs-cloudflare build`, which produces `.open-next/worker.js`. `WORKER_SELF_REFERENCE` points at `myndora-care`. Incremental cache uses static assets, so no `NEXT_INC_CACHE_R2_BUCKET` binding is required.
 
 ## Workers API
 
