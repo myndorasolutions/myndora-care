@@ -33,15 +33,15 @@ npm install
 npm run dev
 ```
 
-## Cloudflare Pages
+## Cloudflare Workers
 
-The web admin stays a Next.js 16 app. Deploy it with the Pages Next.js preset:
+The web admin deploys as the Worker `myndora-care` with OpenNext. Cloudflare should build before deploy:
 
 - Root directory: `apps/web-admin`
-- Build command: `npm run build`
-- Output directory: `.next`
+- Build command: `npx opennextjs-cloudflare build`
+- Deploy command: `npx wrangler deploy`
 
-`@cloudflare/next-on-pages` is not used. This app relies on Next.js 16 server features, including `cacheComponents` and `/api/demo-role`.
+`WORKER_SELF_REFERENCE` points at `myndora-care`. Incremental cache uses static assets, so no `NEXT_INC_CACHE_R2_BUCKET` binding is required. Local `npm run build` still runs `next build`.
 
 ## Workers API
 
