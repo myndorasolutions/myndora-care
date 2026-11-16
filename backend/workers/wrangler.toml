@@ -1,0 +1,10 @@
+name = "myndora-workers"
+main = "src/index.ts"
+compatibility_date = "2026-11-16"
+
+# Secrets belong in .dev.vars locally and in Wrangler secrets in production.
+# Leave them unset to stay in mock/test mode.
+
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "myndora-visit-proofs"

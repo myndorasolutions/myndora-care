@@ -1,26 +1,70 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #f5f7fa;
+  --ink: #10233f;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --primary: #0a63d8;
+  --success: #0e9f6e;
+  --warning: #d97706;
+  --danger: #e02424;
+  --role-accent: #0a63d8;
+  --role-soft: #e8f0fa;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-ink: #10233f;
+  --color-surface: #f5f7fa;
+  --color-primary: #0a63d8;
+  --color-success: #0e9f6e;
+  --color-warning: #d97706;
+  --color-danger: #e02424;
+  --color-line: #e2e8f0;
+  --color-muted: #64748b;
+  --color-card: #ffffff;
+  --font-sans: var(--font-geist-sans), "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+[data-theme="patient"] {
+  --role-accent: #0e9f6e;
+  --role-soft: #e6f7f0;
+}
+[data-theme="sponsor"] {
+  --role-accent: #0b4c94;
+  --role-soft: #e8f0fa;
+}
+[data-theme="chw"] {
+  --role-accent: #d97706;
+  --role-soft: #fdf2e2;
+}
+[data-theme="pharmacy"] {
+  --role-accent: #0f766e;
+  --role-soft: #e6f6f4;
+}
+[data-theme="clinician"] {
+  --role-accent: #4f46e5;
+  --role-soft: #eceefd;
+}
+[data-theme="admin"] {
+  --role-accent: #7c3aed;
+  --role-soft: #f1eafd;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), "Segoe UI", sans-serif;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--role-accent);
+  outline-offset: 2px;
 }

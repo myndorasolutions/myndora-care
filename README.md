@@ -20,7 +20,7 @@ Brand logos, audio prompts, splash screens, and UI design references live in `sh
 ```
 apps/web-admin     Next.js web admin
 apps/mobile-chw    Flutter CHW app (placeholder)
-backend/workers    Cloudflare Workers API (placeholder)
+backend/workers    Cloudflare Workers API
 supabase           Database migrations (placeholder)
 shared-assets      Logos, audio, splash, and design reference
 ```
@@ -32,6 +32,28 @@ cd apps/web-admin
 npm install
 npm run dev
 ```
+
+## Cloudflare Pages
+
+The web admin stays a Next.js 16 app. Deploy it with the Pages Next.js preset:
+
+- Root directory: `apps/web-admin`
+- Build command: `npm run build`
+- Output directory: `.next`
+
+`@cloudflare/next-on-pages` is not used. This app relies on Next.js 16 server features, including `cacheComponents` and `/api/demo-role`.
+
+## Workers API
+
+Paystack checkout, Africa's Talking notifications, and R2 visit proofs run in `backend/workers`.
+
+```bash
+cd backend/workers
+npm install
+npx wrangler dev
+```
+
+The local worker listens on `http://localhost:8787`. Copy `.dev.vars.example` to `.dev.vars` before adding live keys. Empty Paystack and Africa's Talking keys stay in mock mode. The web admin reads `NEXT_PUBLIC_WORKER_API_URL` and falls back to the same mock checkout when the worker is unreachable.
 
 ## Historical UI
 
