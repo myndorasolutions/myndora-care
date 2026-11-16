@@ -1,28 +1,32 @@
+# dependencies
+**/node_modules/
+
+# next.js
+**/.next/
+**/out/
+
+# env
 .env
 .env.*
 **/.env
 **/.env.*
 !.env.example
 !**/.env.example
-*.env.local
-backend/firebase-service-account.json
-scripts/.last-simulation-image
-**/node_modules/
+
+# builds and logs
 **/dist/
 **/build/
+**/*.log
+
+# editors and OS
+.DS_Store
+.idea/
+.vscode/
+*.exe
+
+# flutter (apps/mobile-chw)
 **/.dart_tool/
 **/.flutter-plugins
 **/.flutter-plugins-dependencies
 **/.packages
 **/pubspec.lock
-mobile/.isar/
-**/*.log
-.DS_Store
-.idea/
-.vscode/
-*.exe
-backend/tmp/
-web/dist/
-.terraform/
-*.tfstate*
-.terraform.lock.hcl
