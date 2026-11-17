@@ -51,6 +51,7 @@ export function SignupForm() {
       email: String(form.get("email") ?? ""),
       password: String(form.get("password") ?? ""),
       options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
         data: {
           full_name: fullName,
           phone: String(form.get("phone") ?? ""),
