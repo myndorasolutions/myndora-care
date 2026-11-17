@@ -53,7 +53,7 @@ npm install
 npx wrangler dev
 ```
 
-The local worker listens on `http://localhost:8787`. Copy `.dev.vars.example` to `.dev.vars` before adding live keys. Empty Paystack and Africa's Talking keys stay in mock mode. The web admin reads `NEXT_PUBLIC_WORKER_API_URL` and falls back to the same mock checkout when the worker is unreachable.
+The local worker listens on `http://localhost:8787`. Copy `.dev.vars.example` to `.dev.vars` before adding live keys. Empty Paystack and Africa's Talking keys stay in mock mode. The web admin reads `NEXT_PUBLIC_WORKER_API_URL`. Local development falls back to `http://localhost:8787`. Production falls back to `https://myndora-workers.myndorasolutions-afb.workers.dev`.
 
 ## Historical UI
 

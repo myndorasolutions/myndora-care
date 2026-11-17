@@ -22,8 +22,12 @@ export type PaymentInit = {
 
 const TEST_TOKEN = "myndora-test";
 
+const LIVE_WORKER_API_URL = "https://myndora-workers.myndorasolutions-afb.workers.dev";
+
 function workerBase() {
-  return (process.env.NEXT_PUBLIC_WORKER_API_URL || "http://localhost:8787").replace(/\/$/, "");
+  const configured = process.env.NEXT_PUBLIC_WORKER_API_URL?.replace(/\/$/, "");
+  if (configured) return configured;
+  return process.env.NODE_ENV === "production" ? LIVE_WORKER_API_URL : "http://localhost:8787";
 }
 
 async function workerPost(path: string, body: BodyInit, headers?: HeadersInit) {

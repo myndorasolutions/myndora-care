@@ -5,6 +5,9 @@ import { LoginForm } from "@/components/auth/login-form";
 export default function LoginPage() {
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 py-8">
+      <Link href="/" className="inline-flex min-h-11 items-center text-sm font-semibold text-primary">
+        ← Back to Home
+      </Link>
       <Link href="/">
         <Logo />
       </Link>
