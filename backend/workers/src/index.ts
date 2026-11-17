@@ -432,13 +432,18 @@ function supabaseReady(env: Env) {
 
 function supabaseFetch(env: Env, path: string, init?: RequestInit) {
   const base = env.SUPABASE_URL!.replace(/\/$/, "").replace(/\/rest\/v1$/, "");
+  const key = env.SUPABASE_SERVICE_ROLE_KEY!;
+  const headers: Record<string, string> = {
+    apikey: key,
+    "Content-Type": "application/json",
+    Prefer: "return=representation",
+    "User-Agent": "myndora-workers",
+  };
+  if (key.startsWith("eyJ")) headers.Authorization = `Bearer ${key}`;
   return fetch(`${base}/rest/v1/${path}`, {
     ...init,
     headers: {
-      apikey: env.SUPABASE_SERVICE_ROLE_KEY!,
-      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-      "Content-Type": "application/json",
-      Prefer: "return=representation",
+      ...headers,
       ...(init?.headers ?? {}),
     },
   });
