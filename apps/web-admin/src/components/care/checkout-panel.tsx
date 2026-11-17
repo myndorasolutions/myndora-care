@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fieldClass } from "@/components/care/fields";
 import { confirmAndStore, loadPayments, type PaymentRecord } from "@/lib/billing";
 import type { DemoPlanRow } from "@/lib/demo-care";
 import { loadCityCaps, loadPlanRows } from "@/lib/platform-state";
@@ -10,6 +9,12 @@ import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { initializePayment, type BillingCycle, type PaymentInit } from "@/lib/worker-client";
 
 const CARE_CODES = ["basic_daily", "plus", "family_care"] as const;
+
+const PLAN_FALLBACKS: Record<(typeof CARE_CODES)[number], { name: string; daily: number; monthly: number }> = {
+  basic_daily: { name: "Basic Daily", daily: 300, monthly: 9000 },
+  plus: { name: "Plus", daily: 500, monthly: 15000 },
+  family_care: { name: "Family Care", daily: 1000, monthly: 30000 },
+};
 
 export function CheckoutPanel({
   patientId,
@@ -60,6 +65,16 @@ export function CheckoutPanel({
   const visit = plans.find((plan) => plan.code === "physical_visit");
   const visitPrice = visit?.priceOneTime ?? cap;
   const carePlans = plans.filter((plan) => CARE_CODES.includes(plan.code as (typeof CARE_CODES)[number]));
+  const planCards = CARE_CODES.map((code) => {
+    const live = carePlans.find((plan) => plan.code === code);
+    const fallback = PLAN_FALLBACKS[code];
+    return {
+      code,
+      name: live?.name ?? fallback.name,
+      daily: live?.priceDaily ?? fallback.daily,
+      monthly: live?.priceMonthly ?? fallback.monthly,
+    };
+  });
 
   async function startPlan() {
     const plan = carePlans.find((item) => item.code === planCode);
@@ -152,16 +167,28 @@ export function CheckoutPanel({
       {open === "plan" && !pending ? (
         <div className="mt-4 rounded-2xl border border-line p-4">
           <h3 className="font-semibold">Choose a plan</h3>
-          <label className="mt-3 flex flex-col gap-1 text-sm font-semibold">
-            Plan
-            <select className={fieldClass} value={planCode} onChange={(event) => setPlanCode(event.target.value as (typeof CARE_CODES)[number])}>
-              {carePlans.map((plan) => (
-                <option key={plan.code} value={plan.code}>
-                  {plan.name} · ₦{plan.priceDaily?.toLocaleString("en-NG")}/day or ₦{plan.priceMonthly?.toLocaleString("en-NG")}/month
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
+            {planCards.map((plan) => {
+              const selected = plan.code === planCode;
+              return (
+                <button
+                  key={plan.code}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setPlanCode(plan.code)}
+                  className={`min-h-28 rounded-2xl border p-4 text-left ${selected ? "border-primary bg-primary/5 ring-2 ring-primary" : "border-line bg-white"}`}
+                >
+                  <span className="flex items-start justify-between gap-2">
+                    <span className="font-semibold">{plan.name}</span>
+                    {selected ? <span aria-hidden="true" className="text-lg leading-none text-primary">✓</span> : null}
+                  </span>
+                  {selected ? <span className="mt-2 inline-flex rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-white">Selected</span> : null}
+                  <span className="mt-2 block text-sm">₦{plan.daily.toLocaleString("en-NG")} / day</span>
+                  <span className="block text-sm text-muted">₦{plan.monthly.toLocaleString("en-NG")} / month</span>
+                </button>
+              );
+            })}
+          </div>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button type="button" onClick={() => setCycle("daily")} className={`min-h-12 rounded-xl text-sm font-semibold ${cycle === "daily" ? "bg-ink text-white" : "border border-line"}`}>Daily</button>
             <button type="button" onClick={() => setCycle("monthly")} className={`min-h-12 rounded-xl text-sm font-semibold ${cycle === "monthly" ? "bg-ink text-white" : "border border-line"}`}>Monthly</button>

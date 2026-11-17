@@ -2,15 +2,24 @@ export const fieldClass = "min-h-12 w-full rounded-xl border border-line bg-whit
 
 export function Field({
   label,
+  unit,
   children,
 }: {
   label: string;
+  unit?: string;
   children: React.ReactNode;
 }) {
   return (
     <label className="flex flex-col gap-1 text-sm font-semibold">
       {label}
-      {children}
+      {unit ? (
+        <span className="relative block">
+          {children}
+          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm font-normal text-muted">{unit}</span>
+        </span>
+      ) : (
+        children
+      )}
     </label>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { CheckoutPanel } from "@/components/care/checkout-panel";
 import { DirectiveCard } from "@/components/care/directive-card";
 import { Field, RiskBadge, fieldClass } from "@/components/care/fields";
@@ -102,6 +103,9 @@ export function PatientHome() {
 
   return (
     <div className="flex flex-col gap-6">
+      <Link href="/" className="inline-flex min-h-12 items-center self-start text-sm font-semibold text-primary">
+        ← Back to Main Screen
+      </Link>
       <div>
         <h1 className="text-3xl font-semibold">{care?.patient?.name ?? "Patient"}</h1>
         <p className="text-sm text-muted">{care?.patient ? `${care.patient.city}, ${care.patient.state}` : "Loading care record"}</p>
@@ -111,14 +115,15 @@ export function PatientHome() {
       <form onSubmit={(event) => void onSubmit(event)} className="grid gap-4 rounded-2xl border border-line bg-card p-4">
         <h2 className="text-lg font-semibold">Log vitals</h2>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Systolic">
-            <input className={fieldClass} inputMode="numeric" value={draft.systolic} onChange={(event) => setDraft({ ...draft, systolic: event.target.value })} />
+          <p className="text-sm font-semibold sm:col-span-2">Blood Pressure (mmHg)</p>
+          <Field label="Systolic (mmHg)" unit="mmHg">
+            <input className={`${fieldClass} pr-16`} inputMode="numeric" value={draft.systolic} onChange={(event) => setDraft({ ...draft, systolic: event.target.value })} />
           </Field>
-          <Field label="Diastolic">
-            <input className={fieldClass} inputMode="numeric" value={draft.diastolic} onChange={(event) => setDraft({ ...draft, diastolic: event.target.value })} />
+          <Field label="Diastolic (mmHg)" unit="mmHg">
+            <input className={`${fieldClass} pr-16`} inputMode="numeric" value={draft.diastolic} onChange={(event) => setDraft({ ...draft, diastolic: event.target.value })} />
           </Field>
-          <Field label="Glucose">
-            <input className={fieldClass} inputMode="decimal" value={draft.glucose} onChange={(event) => setDraft({ ...draft, glucose: event.target.value })} />
+          <Field label="Blood Glucose (mg/dL)" unit="mg/dL">
+            <input className={`${fieldClass} pr-16`} inputMode="decimal" value={draft.glucose} onChange={(event) => setDraft({ ...draft, glucose: event.target.value })} />
           </Field>
           <Field label="Glucose type">
             <select className={fieldClass} value={draft.glucoseType} onChange={(event) => setDraft({ ...draft, glucoseType: event.target.value as GlucoseType })}>
@@ -127,14 +132,14 @@ export function PatientHome() {
               <option value="random">Random</option>
             </select>
           </Field>
-          <Field label="Pulse">
-            <input className={fieldClass} inputMode="numeric" value={draft.pulse} onChange={(event) => setDraft({ ...draft, pulse: event.target.value })} />
+          <Field label="Pulse (bpm)" unit="bpm">
+            <input className={`${fieldClass} pr-14`} inputMode="numeric" value={draft.pulse} onChange={(event) => setDraft({ ...draft, pulse: event.target.value })} />
           </Field>
-          <Field label="Temperature">
-            <input className={fieldClass} inputMode="decimal" value={draft.temperature} onChange={(event) => setDraft({ ...draft, temperature: event.target.value })} />
+          <Field label="Temperature (°C)" unit="°C">
+            <input className={`${fieldClass} pr-12`} inputMode="decimal" value={draft.temperature} onChange={(event) => setDraft({ ...draft, temperature: event.target.value })} />
           </Field>
-          <Field label="Weight">
-            <input className={fieldClass} inputMode="decimal" value={draft.weight} onChange={(event) => setDraft({ ...draft, weight: event.target.value })} />
+          <Field label="Weight (kg)" unit="kg">
+            <input className={`${fieldClass} pr-12`} inputMode="decimal" value={draft.weight} onChange={(event) => setDraft({ ...draft, weight: event.target.value })} />
           </Field>
         </div>
         <fieldset>
@@ -167,7 +172,10 @@ export function PatientHome() {
 
       {result && care?.patient ? (
         <section className="rounded-2xl border border-line bg-card p-4">
-          <div className="flex items-center gap-3">
+          <Link href="/" className="inline-flex min-h-12 items-center text-sm font-semibold text-primary">
+            ← Back to Main Screen
+          </Link>
+          <div className="mt-2 flex items-center gap-3">
             <h2 className="text-lg font-semibold">Reading result</h2>
             <RiskBadge level={result.level} />
           </div>

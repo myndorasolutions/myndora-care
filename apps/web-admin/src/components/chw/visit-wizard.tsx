@@ -28,6 +28,7 @@ export function VisitWizard() {
   const [glucoseType, setGlucoseType] = useState<GlucoseType>("none");
   const [pulse, setPulse] = useState("");
   const [temperature, setTemperature] = useState("");
+  const [weight, setWeight] = useState("");
   const [medicationTaken, setMedicationTaken] = useState(true);
   const [symptoms, setSymptoms] = useState<SymptomId[]>([]);
   const [notes, setNotes] = useState("");
@@ -115,7 +116,7 @@ export function VisitWizard() {
       glucoseType,
       pulse: pulse === "" ? null : Number(pulse),
       temperature: temperature === "" ? null : Number(temperature),
-      weight: null,
+      weight: weight === "" ? null : Number(weight),
       symptoms,
       medicationTaken,
       notes,
@@ -201,9 +202,10 @@ export function VisitWizard() {
           <h2 className="text-lg font-semibold">Capture vitals and notes</h2>
           <p className="rounded-xl bg-warning/15 px-3 py-2 text-sm font-semibold">CHWs do not diagnose or prescribe.</p>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Systolic"><input className={fieldClass} inputMode="numeric" value={systolic} onChange={(event) => setSystolic(event.target.value)} /></Field>
-            <Field label="Diastolic"><input className={fieldClass} inputMode="numeric" value={diastolic} onChange={(event) => setDiastolic(event.target.value)} /></Field>
-            <Field label="Blood sugar"><input className={fieldClass} inputMode="decimal" value={glucose} onChange={(event) => setGlucose(event.target.value)} /></Field>
+            <p className="text-sm font-semibold sm:col-span-2">Blood Pressure (mmHg)</p>
+            <Field label="Systolic (mmHg)" unit="mmHg"><input className={`${fieldClass} pr-16`} inputMode="numeric" value={systolic} onChange={(event) => setSystolic(event.target.value)} /></Field>
+            <Field label="Diastolic (mmHg)" unit="mmHg"><input className={`${fieldClass} pr-16`} inputMode="numeric" value={diastolic} onChange={(event) => setDiastolic(event.target.value)} /></Field>
+            <Field label="Blood Glucose (mg/dL)" unit="mg/dL"><input className={`${fieldClass} pr-16`} inputMode="decimal" value={glucose} onChange={(event) => setGlucose(event.target.value)} /></Field>
             <Field label="Glucose type">
               <select className={fieldClass} value={glucoseType} onChange={(event) => setGlucoseType(event.target.value as GlucoseType)}>
                 <option value="none">None</option>
@@ -211,8 +213,9 @@ export function VisitWizard() {
                 <option value="random">Random</option>
               </select>
             </Field>
-            <Field label="Pulse"><input className={fieldClass} inputMode="numeric" value={pulse} onChange={(event) => setPulse(event.target.value)} /></Field>
-            <Field label="Temperature"><input className={fieldClass} inputMode="decimal" value={temperature} onChange={(event) => setTemperature(event.target.value)} /></Field>
+            <Field label="Pulse (bpm)" unit="bpm"><input className={`${fieldClass} pr-14`} inputMode="numeric" value={pulse} onChange={(event) => setPulse(event.target.value)} /></Field>
+            <Field label="Temperature (°C)" unit="°C"><input className={`${fieldClass} pr-12`} inputMode="decimal" value={temperature} onChange={(event) => setTemperature(event.target.value)} /></Field>
+            <Field label="Weight (kg)" unit="kg"><input className={`${fieldClass} pr-12`} inputMode="decimal" value={weight} onChange={(event) => setWeight(event.target.value)} /></Field>
           </div>
           <label className="flex min-h-12 items-center gap-3 text-sm font-semibold">
             <input type="checkbox" checked={medicationTaken} onChange={(event) => setMedicationTaken(event.target.checked)} />

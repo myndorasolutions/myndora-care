@@ -128,9 +128,10 @@ export function PharmacyHome() {
           </select>
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Systolic"><input className={fieldClass} inputMode="numeric" value={systolic} onChange={(event) => setSystolic(event.target.value)} /></Field>
-          <Field label="Diastolic"><input className={fieldClass} inputMode="numeric" value={diastolic} onChange={(event) => setDiastolic(event.target.value)} /></Field>
-          <Field label="Blood sugar"><input className={fieldClass} inputMode="decimal" value={glucose} onChange={(event) => setGlucose(event.target.value)} /></Field>
+          <p className="text-sm font-semibold sm:col-span-2">Blood Pressure (mmHg)</p>
+          <Field label="Systolic (mmHg)" unit="mmHg"><input className={`${fieldClass} pr-16`} inputMode="numeric" value={systolic} onChange={(event) => setSystolic(event.target.value)} /></Field>
+          <Field label="Diastolic (mmHg)" unit="mmHg"><input className={`${fieldClass} pr-16`} inputMode="numeric" value={diastolic} onChange={(event) => setDiastolic(event.target.value)} /></Field>
+          <Field label="Blood Glucose (mg/dL)" unit="mg/dL"><input className={`${fieldClass} pr-16`} inputMode="decimal" value={glucose} onChange={(event) => setGlucose(event.target.value)} /></Field>
           <Field label="Glucose type">
             <select className={fieldClass} value={glucoseType} onChange={(event) => setGlucoseType(event.target.value as GlucoseType)}>
               <option value="random">Random</option>

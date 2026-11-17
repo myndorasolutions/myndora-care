@@ -53,6 +53,13 @@ npm install
 npx wrangler dev
 ```
 
+Both production Workers are live:
+
+- Web app (`myndora-care`): https://myndora-care.myndorasolutions-afb.workers.dev
+- API (`myndora-workers`): https://myndora-workers.myndorasolutions-afb.workers.dev
+
+`myndora-workers` has `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, so simulated payments and visit-proof URLs can be written to the live database. Paystack and Africa's Talking secrets are not set, so charges and SMS/WhatsApp stay in test mode.
+
 The local worker listens on `http://localhost:8787`. Copy `.dev.vars.example` to `.dev.vars` before adding live keys. Empty Paystack and Africa's Talking keys stay in mock mode. The web admin reads `NEXT_PUBLIC_WORKER_API_URL`. Local development falls back to `http://localhost:8787`. Production falls back to `https://myndora-workers.myndorasolutions-afb.workers.dev`.
 
 ## Historical UI
