@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ROLE_HOME, ROLE_LABEL, SIGNUP_ROLES, isSignupRole } from "@/lib/roles";
+import { PUBLIC_ROLE_LABEL, PUBLIC_SIGNUP_ROLES, ROLE_HOME, isPublicSignupRole } from "@/lib/roles";
 import { flagEnabled, loadFlags } from "@/lib/platform-state";
 import { createClient } from "@/lib/supabase/client";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
@@ -17,12 +17,11 @@ const languages = [
 
 export function SignupForm() {
   const router = useRouter();
-  const [role, setRole] = useState<(typeof SIGNUP_ROLES)[number]>("patient");
+  const [role, setRole] = useState<(typeof PUBLIC_SIGNUP_ROLES)[number]>("patient");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [selfSponsoredOn, setSelfSponsoredOn] = useState(true);
-  const providerRole = role === "chw" || role === "pharmacy" || role === "clinician";
 
   useEffect(() => {
     void loadFlags().then((flags) => setSelfSponsoredOn(flagEnabled(flags, "self_sponsored_signup")));
@@ -39,8 +38,8 @@ export function SignupForm() {
 
     const form = new FormData(event.currentTarget);
     const selected = String(form.get("role") ?? "");
-    if (!isSignupRole(selected)) {
-      setError("Choose a patient, sponsor, CHW, pharmacy, or clinician account.");
+    if (!isPublicSignupRole(selected)) {
+      setError("Choose a patient or family sponsor account.");
       return;
     }
 
@@ -60,8 +59,6 @@ export function SignupForm() {
           is_self_sponsored: selected === "patient" && form.get("self_sponsored") === "on",
           city: String(form.get("city") ?? ""),
           state: String(form.get("state") ?? ""),
-          provider_name: String(form.get("provider_name") ?? fullName),
-          cadre_or_specialty: String(form.get("cadre_or_specialty") ?? ""),
         },
       },
     });
@@ -115,13 +112,13 @@ export function SignupForm() {
           name="role"
           value={role}
           onChange={(event) => {
-            if (isSignupRole(event.target.value)) setRole(event.target.value);
+            if (isPublicSignupRole(event.target.value)) setRole(event.target.value);
           }}
           className="min-h-11 rounded-xl border border-line bg-white px-3 font-normal"
         >
-          {SIGNUP_ROLES.map((option) => (
+          {PUBLIC_SIGNUP_ROLES.map((option) => (
             <option key={option} value={option}>
-              {ROLE_LABEL[option]}
+              {PUBLIC_ROLE_LABEL[option]}
             </option>
           ))}
         </select>
@@ -137,19 +134,6 @@ export function SignupForm() {
             </span>
           </span>
         </label>
-      ) : null}
-
-      {providerRole ? (
-        <>
-          <label className="flex flex-col gap-1 text-sm font-semibold">
-            Provider name
-            <input name="provider_name" className="min-h-11 rounded-xl border border-line bg-white px-3 font-normal" />
-          </label>
-          <label className="flex flex-col gap-1 text-sm font-semibold">
-            Cadre or specialty
-            <input name="cadre_or_specialty" className="min-h-11 rounded-xl border border-line bg-white px-3 font-normal" />
-          </label>
-        </>
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">

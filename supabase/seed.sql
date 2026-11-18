@@ -78,6 +78,7 @@ begin
       cadre_or_specialty,
       city,
       state,
+      service_area,
       languages_spoken,
       verification_status,
       verification_badges,
@@ -89,6 +90,7 @@ begin
       nullif(meta->>'cadre_or_specialty', ''),
       city,
       state,
+      nullif(meta->>'service_area', ''),
       coalesce(
         case when language = '' then '{}'::text[] else array[language] end,
         '{}'::text[]

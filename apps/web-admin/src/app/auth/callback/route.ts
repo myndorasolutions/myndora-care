@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
-import { ROLE_HOME, isAppRole } from "@/lib/roles";
+import { accountHome, isAppRole, isPartnerRole } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 
 const OTP_TYPES = ["signup", "invite", "magiclink", "recovery", "email", "email_change"] as const;
@@ -31,7 +31,7 @@ export async function GET(request: Request) {
 
   const { data } = await supabase.auth.getUser();
   const userId = data.user?.id;
-  let destination = ROLE_HOME.patient;
+  let destination = accountHome("patient", null);
 
   if (userId) {
     const { data: profile } = await supabase
@@ -40,7 +40,16 @@ export async function GET(request: Request) {
       .eq("id", userId)
       .maybeSingle();
     if (isAppRole(profile?.primary_role)) {
-      destination = ROLE_HOME[profile.primary_role];
+      let verificationStatus: string | null = null;
+      if (isPartnerRole(profile.primary_role)) {
+        const { data: provider } = await supabase
+          .from("providers")
+          .select("verification_status")
+          .eq("user_id", userId)
+          .maybeSingle();
+        verificationStatus = provider?.verification_status ?? null;
+      }
+      destination = accountHome(profile.primary_role, verificationStatus);
     }
   }
 

@@ -11,8 +11,10 @@ import {
   type VerificationStatus,
 } from "@/lib/demo-care";
 import { loadAdminCare, resolveDispute, saveAssignment, updateChwVerification, type AdminCare } from "@/lib/ops-client";
+import { ROLE_LABEL, isClearedVerification } from "@/lib/roles";
 
 const STATUSES: VerificationStatus[] = ["pending", "remote_approved", "home_visit_approved", "verified", "suspended"];
+const PARTNER_STATUSES: VerificationStatus[] = ["pending", "verified", "suspended"];
 
 export function AdminHome() {
   const [care, setCare] = useState<AdminCare | null>(null);
@@ -29,7 +31,7 @@ export function AdminHome() {
     const loaded = await loadAdminCare();
     setCare(loaded);
     const next: Record<string, { status: VerificationStatus; badges: string[] }> = {};
-    for (const provider of loaded.providers.filter((item) => item.providerType === "chw")) {
+    for (const provider of loaded.providers) {
       next[provider.id] = { status: provider.verificationStatus, badges: provider.badges };
     }
     setDrafts(next);
@@ -43,13 +45,22 @@ export function AdminHome() {
 
   useEffect(() => {
     if (!care || !patientId) return;
-    const active = (type: ProviderKind) => care.assignments.find((row) => row.patientId === patientId && row.providerType === type && row.active)?.providerId ?? "";
+    const active = (type: ProviderKind) => {
+      const providerId = care.assignments.find((row) => row.patientId === patientId && row.providerType === type && row.active)?.providerId ?? "";
+      const provider = care.providers.find((item) => item.id === providerId);
+      return provider && isClearedVerification(provider.verificationStatus) ? providerId : "";
+    };
     setChwId(active("chw"));
     setPharmacyId(active("pharmacy"));
     setClinicianId(active("clinician"));
   }, [care, patientId]);
 
-  const chws = (care?.providers ?? []).filter((provider) => provider.providerType === "chw");
+  const providers = [...(care?.providers ?? [])].sort((left, right) => {
+    const rank = (status: VerificationStatus) => (status === "pending" ? 0 : status === "suspended" ? 1 : 2);
+    return rank(left.verificationStatus) - rank(right.verificationStatus) || left.name.localeCompare(right.name);
+  });
+  const cleared = (type: ProviderKind) =>
+    (care?.providers ?? []).filter((provider) => provider.providerType === type && isClearedVerification(provider.verificationStatus));
   const reviewVisits = (care?.visits ?? []).filter(
     (visit) => visit.status === "needs_review" || visit.status === "completed_unverified" || visit.syncStatus === "failed_sync",
   );
@@ -63,11 +74,11 @@ export function AdminHome() {
     });
   }
 
-  async function saveChw(provider: DemoProvider) {
+  async function saveProvider(provider: DemoProvider) {
     const draft = drafts[provider.id];
     if (!draft) return;
     setBusy(true);
-    const saved = await updateChwVerification(provider.id, draft.status, draft.badges);
+    const saved = await updateChwVerification(provider.id, draft.status, draft.badges, provider.providerType === "chw");
     setBusy(false);
     setMessage(saved.ok ? `${provider.name} updated.` : saved.error);
     if (saved.ok) await refresh();
@@ -107,39 +118,46 @@ export function AdminHome() {
       <div>
         <p className="text-sm font-semibold text-[var(--role-accent)]">Admin</p>
         <h1 className="mt-1 text-3xl font-semibold">Care coordinator</h1>
-        <p className="text-sm text-muted">CHW verification, assignments, and the quality queue.</p>
+        <p className="text-sm text-muted">Care partner applications, assignments, and the quality queue.</p>
         {care?.notice ? <p className="mt-2 text-sm text-muted">{care.notice}</p> : null}
       </div>
       {message ? <p className="rounded-xl bg-[var(--role-soft)] px-3 py-2 text-sm">{message}</p> : null}
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">CHW vetting</h2>
-        {chws.map((provider) => {
+        <h2 className="text-lg font-semibold">Care partner applications</h2>
+        {providers.length === 0 ? <p className="text-sm text-muted">No applications are waiting.</p> : null}
+        {providers.map((provider) => {
           const draft = drafts[provider.id] ?? { status: provider.verificationStatus, badges: provider.badges };
+          const isChw = provider.providerType === "chw";
           const ready = homeVisitReady(draft.badges);
+          const statusOptions = isChw || PARTNER_STATUSES.includes(draft.status) ? (isChw ? STATUSES : PARTNER_STATUSES) : [draft.status, ...PARTNER_STATUSES];
+          const place = [provider.serviceArea, provider.city].filter(Boolean).join(" · ");
           return (
             <article key={provider.id} className="rounded-2xl border border-line bg-card p-4">
+              <p className="text-sm font-semibold text-[var(--role-accent)]">{ROLE_LABEL[provider.providerType]}</p>
               <p className="font-semibold">{provider.name}</p>
-              <p className="text-sm text-muted">{provider.cadre} · {provider.city}</p>
-              <div className="mt-3 grid gap-2">
-                {CHW_CHECKS.map((check) => (
-                  <label key={check.key} className="flex items-center gap-3 text-sm font-semibold">
-                    <input type="checkbox" checked={draft.badges.includes(check.key)} onChange={() => toggleCheck(provider.id, check.key)} />
-                    {check.label}
-                  </label>
-                ))}
-              </div>
+              <p className="text-sm text-muted">{[provider.cadre, place].filter(Boolean).join(" · ")}</p>
+              {isChw ? (
+                <div className="mt-3 grid gap-2">
+                  {CHW_CHECKS.map((check) => (
+                    <label key={check.key} className="flex items-center gap-3 text-sm font-semibold">
+                      <input type="checkbox" checked={draft.badges.includes(check.key)} onChange={() => toggleCheck(provider.id, check.key)} />
+                      {check.label}
+                    </label>
+                  ))}
+                </div>
+              ) : null}
               <Field label="Status">
                 <select className={`${fieldClass} mt-2`} value={draft.status} onChange={(event) => setDrafts({ ...drafts, [provider.id]: { ...draft, status: event.target.value as VerificationStatus } })}>
-                  {STATUSES.map((status) => (
-                    <option key={status} value={status} disabled={!ready && (status === "home_visit_approved" || status === "verified")}>
-                      {status.replaceAll("_", " ")}
+                  {statusOptions.map((status) => (
+                    <option key={status} value={status} disabled={isChw && !ready && (status === "home_visit_approved" || status === "verified")}>
+                      {status.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase())}
                     </option>
                   ))}
                 </select>
               </Field>
-              <p className="mt-2 text-sm text-muted">{ready ? "Home visits can be approved." : "Home visit approval stays locked until every check is complete."}</p>
-              <button type="button" disabled={busy} onClick={() => void saveChw(provider)} className="mt-3 min-h-12 rounded-xl bg-ink px-4 text-sm font-semibold text-white disabled:opacity-50">Save CHW</button>
+              {isChw ? <p className="mt-2 text-sm text-muted">{ready ? "Home visits can be approved." : "Home visit approval stays locked until every check is complete."}</p> : null}
+              <button type="button" disabled={busy} onClick={() => void saveProvider(provider)} className="mt-3 min-h-12 rounded-xl bg-ink px-4 text-sm font-semibold text-white disabled:opacity-50">Save application</button>
             </article>
           );
         })}
@@ -156,19 +174,19 @@ export function AdminHome() {
           <Field label="CHW">
             <select className={fieldClass} value={chwId} onChange={(event) => setChwId(event.target.value)}>
               <option value="">Unassigned</option>
-              {chws.map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}
+              {cleared("chw").map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}
             </select>
           </Field>
           <Field label="Pharmacy hub">
             <select className={fieldClass} value={pharmacyId} onChange={(event) => setPharmacyId(event.target.value)}>
               <option value="">Unassigned</option>
-              {(care?.providers ?? []).filter((provider) => provider.providerType === "pharmacy").map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}
+              {(cleared("pharmacy")).map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}
             </select>
           </Field>
           <Field label="Clinician">
             <select className={fieldClass} value={clinicianId} onChange={(event) => setClinicianId(event.target.value)}>
               <option value="">Unassigned</option>
-              {(care?.providers ?? []).filter((provider) => provider.providerType === "clinician").map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}
+              {(cleared("clinician")).map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}
             </select>
           </Field>
         </div>

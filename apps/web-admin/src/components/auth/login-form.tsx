@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ROLE_HOME, isAppRole } from "@/lib/roles";
+import { accountHome, isAppRole, isPartnerRole } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/client";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 
@@ -39,7 +39,16 @@ export function LoginForm() {
       .eq("id", data.user.id)
       .maybeSingle();
     const role = isAppRole(profile?.primary_role) ? profile.primary_role : "patient";
-    router.push(ROLE_HOME[role]);
+    let verificationStatus: string | null = null;
+    if (isPartnerRole(role)) {
+      const { data: provider } = await supabase
+        .from("providers")
+        .select("verification_status")
+        .eq("user_id", data.user.id)
+        .maybeSingle();
+      verificationStatus = provider?.verification_status ?? null;
+    }
+    router.push(accountHome(role, verificationStatus));
     router.refresh();
   }
 

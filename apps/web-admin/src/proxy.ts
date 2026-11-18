@@ -1,6 +1,14 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { ROLE_HOME, isAppRole, roleFromPath, type AppRole } from "@/lib/roles";
+import {
+  REVIEW_PATH,
+  accountHome,
+  isAppRole,
+  isClearedVerification,
+  isPartnerRole,
+  roleFromPath,
+  type AppRole,
+} from "@/lib/roles";
 import { demoModeEnabled, supabaseEnv } from "@/lib/supabase/env";
 
 const DEMO_COOKIE = "myndora_demo_role";
@@ -9,6 +17,7 @@ export async function proxy(request: NextRequest) {
   const env = supabaseEnv();
   let response = NextResponse.next({ request });
   let role: AppRole | null = null;
+  let verificationStatus: string | null = null;
   let selfSponsored = false;
 
   if (env) {
@@ -41,6 +50,15 @@ export async function proxy(request: NextRequest) {
         role = profileRole;
       }
 
+      if (isPartnerRole(role)) {
+        const { data: provider } = await supabase
+          .from("providers")
+          .select("verification_status")
+          .eq("user_id", data.user.id)
+          .maybeSingle();
+        verificationStatus = provider?.verification_status ?? null;
+      }
+
       const { data: patient } = await supabase
         .from("patients")
         .select("is_self_sponsored")
@@ -52,10 +70,18 @@ export async function proxy(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
   const routeRole = roleFromPath(path);
+  const home = role ? accountHome(role, verificationStatus) : "/login";
+
+  if (path === REVIEW_PATH || path.startsWith(`${REVIEW_PATH}/`)) {
+    if (!env) return redirectWithCookies(request, "/login", response);
+    if (!role) return redirectWithCookies(request, "/login", response);
+    if (isPartnerRole(role) && !isClearedVerification(verificationStatus)) return response;
+    return redirectWithCookies(request, home, response);
+  }
 
   if (!routeRole) {
-    if ((path === "/login" || path === "/signup") && role) {
-      return redirectWithCookies(request, ROLE_HOME[role], response);
+    if ((path === "/login" || path === "/signup" || path === "/apply") && role) {
+      return redirectWithCookies(request, home, response);
     }
     return response;
   }
@@ -63,16 +89,20 @@ export async function proxy(request: NextRequest) {
   if (!env) return response;
 
   const demoRole = request.cookies.get(DEMO_COOKIE)?.value;
-  const demoMatch =
-    demoModeEnabled() && isAppRole(demoRole) && demoRole === routeRole;
+  const demoMatch = demoModeEnabled() && isAppRole(demoRole) && demoRole === routeRole;
+  if (demoMatch) return response;
+
+  if (isPartnerRole(role) && !isClearedVerification(verificationStatus) && isPartnerRole(routeRole)) {
+    return redirectWithCookies(request, REVIEW_PATH, response);
+  }
+
   const roleMatch =
     role === routeRole ||
     (role === "patient" && selfSponsored && routeRole === "sponsor");
 
-  if (demoMatch || roleMatch) return response;
+  if (roleMatch) return response;
 
-  const destination = role ? ROLE_HOME[role] : "/login";
-  return redirectWithCookies(request, destination, response);
+  return redirectWithCookies(request, home, response);
 }
 
 function redirectWithCookies(

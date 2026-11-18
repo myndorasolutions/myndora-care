@@ -283,7 +283,7 @@ export async function loadAdminCare(): Promise<AdminCare> {
   }
   const supabase = createClient();
   const [{ data: providerRows }, { data: assignmentRows }, { data: disputeRows }, { data: visitRows }, { data: alertRows }] = await Promise.all([
-    supabase.from("providers").select("id, user_id, provider_name, provider_type, cadre_or_specialty, city, verification_status, verification_badges"),
+    supabase.from("providers").select("id, user_id, provider_name, provider_type, cadre_or_specialty, city, service_area, verification_status, verification_badges"),
     supabase.from("patient_provider_assignments").select("id, patient_id, provider_id, provider_type, active"),
     supabase.from("disputes").select("id, visit_id, reason, status, resolution_notes, created_at, raised_by_user_id").in("status", ["open", "under_review"]),
     supabase.from("visits").select("id, patient_id, visit_type, started_at, completed_at, gps_lat, gps_lng, patient_confirmed, confirmation_method, audio_language_used, status, sync_status, notes, chw_provider_id").or("status.eq.needs_review,status.eq.completed_unverified,sync_status.eq.failed_sync"),
@@ -298,8 +298,13 @@ export async function loadAdminCare(): Promise<AdminCare> {
   return { mode: "live", providers, patients, assignments, disputes, visits, alerts, notice: null };
 }
 
-export async function updateChwVerification(providerId: string, status: VerificationStatus, badges: string[]) {
-  if ((status === "home_visit_approved" || status === "verified") && !homeVisitReady(badges)) {
+export async function updateChwVerification(
+  providerId: string,
+  status: VerificationStatus,
+  badges: string[],
+  enforceChecklist = true,
+) {
+  if (enforceChecklist && (status === "home_visit_approved" || status === "verified") && !homeVisitReady(badges)) {
     return { ok: false as const, error: "Complete every verification check before home-visit approval.", id: providerId, server: false };
   }
   const { live, user } = await currentSession();
@@ -982,6 +987,7 @@ function mapProvider(row: ProviderRecord): DemoProvider {
     providerType: row.provider_type === "pharmacy" || row.provider_type === "clinician" ? row.provider_type : "chw",
     cadre: row.cadre_or_specialty ?? "",
     city: row.city ?? "",
+    serviceArea: row.service_area ?? "",
     verificationStatus: isVerification(row.verification_status) ? row.verification_status : "pending",
     badges: row.verification_badges ?? [],
   };
@@ -1074,6 +1080,7 @@ type ProviderRecord = {
   provider_type: string;
   cadre_or_specialty: string | null;
   city: string | null;
+  service_area: string | null;
   verification_status: string;
   verification_badges: string[] | null;
 };

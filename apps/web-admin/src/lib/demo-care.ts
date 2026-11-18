@@ -300,6 +300,7 @@ export type DemoProvider = {
   providerType: ProviderKind;
   cadre: string;
   city: string;
+  serviceArea?: string;
   verificationStatus: VerificationStatus;
   badges: string[];
 };

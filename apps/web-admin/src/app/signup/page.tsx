@@ -14,10 +14,16 @@ export default function SignupPage() {
       <div>
         <h1 className="text-3xl font-semibold">Create an account</h1>
         <p className="mt-2 text-sm leading-6 text-muted">
-          Patients, sponsors, community health workers, pharmacies, and clinicians can sign up. Admin accounts are issued by Myndora.
+          Patients and family sponsors can create an account here. Admin accounts are issued by Myndora.
         </p>
       </div>
       <SignupForm />
+      <p className="text-sm leading-6">
+        Are you a CHW, Pharmacy, or Clinician?{" "}
+        <Link href="/apply" className="font-semibold text-primary">
+          Apply as a Care Partner →
+        </Link>
+      </p>
       <p className="text-sm">
         Already registered?{" "}
         <Link href="/login" className="font-semibold text-primary">
