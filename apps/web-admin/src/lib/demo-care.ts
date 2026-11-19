@@ -5,6 +5,7 @@ export const ILORIN_GPS = { lat: 8.479879, lng: 4.541841 };
 export type DemoPatient = {
   id: string;
   name: string;
+  email?: string;
   city: string;
   state: string;
   age: number | null;
@@ -14,6 +15,7 @@ export type DemoPatient = {
   emergencyContactName: string;
   emergencyContactPhone: string;
   riskStatus: RiskLevel;
+  planName?: string;
 };
 
 export type DemoVital = {
@@ -91,6 +93,8 @@ export const DEMO_PATIENTS: DemoPatient[] = [
   {
     id: "demo-grace",
     name: "Grace Adeyemi",
+    email: "grace.adeyemi@example.com",
+    planName: "Plus",
     city: "Ilorin",
     state: "Kwara",
     isSelfSponsored: true,
@@ -104,6 +108,8 @@ export const DEMO_PATIENTS: DemoPatient[] = [
   {
     id: "demo-baba",
     name: "Baba Adeyemi",
+    email: "baba.adeyemi@example.com",
+    planName: "Family Care",
     city: "Ilorin",
     state: "Kwara",
     age: 74,
@@ -297,6 +303,7 @@ export type DemoProvider = {
   id: string;
   userId: string;
   name: string;
+  email?: string;
   providerType: ProviderKind;
   cadre: string;
   city: string;
@@ -321,9 +328,11 @@ export const DEMO_PROVIDERS: DemoProvider[] = [
     id: DEMO_CHW.id,
     userId: "demo-amina-user",
     name: DEMO_CHW.name,
+    email: "amina.bello@example.com",
     providerType: "chw",
     cadre: DEMO_CHW.cadre,
     city: "Ilorin",
+    serviceArea: "Tanke",
     verificationStatus: "verified",
     badges: ["identity_verified", "license_cadre_verified", "references_checked", "training_completed", "home_visit", "remote_check"],
   },
@@ -331,9 +340,11 @@ export const DEMO_PROVIDERS: DemoProvider[] = [
     id: "demo-seyi",
     userId: "demo-seyi-user",
     name: "Seyi Balogun",
+    email: "seyi.balogun@example.com",
     providerType: "chw",
     cadre: "Community Health Extension Worker",
     city: "Ilorin",
+    serviceArea: "Oke-Oyi",
     verificationStatus: "pending",
     badges: ["identity_verified"],
   },
@@ -341,9 +352,11 @@ export const DEMO_PROVIDERS: DemoProvider[] = [
     id: DEMO_PHARMACY.id,
     userId: DEMO_PHARMACY.userId,
     name: DEMO_PHARMACY.name,
+    email: "healthplus.tanke@example.com",
     providerType: "pharmacy",
     cadre: "Retail pharmacy",
     city: "Ilorin",
+    serviceArea: "Tanke",
     verificationStatus: "verified",
     badges: ["refill_hub"],
   },
@@ -351,9 +364,11 @@ export const DEMO_PROVIDERS: DemoProvider[] = [
     id: DEMO_CLINICIAN.id,
     userId: DEMO_CLINICIAN.userId,
     name: DEMO_CLINICIAN.name,
+    email: "chinedu.okafor@example.com",
     providerType: "clinician",
     cadre: "Internal medicine",
     city: "Abuja",
+    serviceArea: "Garki",
     verificationStatus: "verified",
     badges: ["clinician_review"],
   },
@@ -582,6 +597,7 @@ export type DemoAudit = {
   id: string;
   actorUserId: string | null;
   actorName: string;
+  actorRole?: string;
   action: string;
   entityType: string;
   entityId: string | null;
@@ -594,6 +610,7 @@ export const DEMO_AUDITS: DemoAudit[] = [
     id: "demo-audit-dispute",
     actorUserId: null,
     actorName: "Grace Adeyemi",
+    actorRole: "Patient",
     action: "dispute.opened",
     entityType: "disputes",
     entityId: "demo-dispute-grace",

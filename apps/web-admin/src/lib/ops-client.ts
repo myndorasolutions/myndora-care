@@ -37,6 +37,7 @@ import {
 import { listQueue, type QueueRecord } from "@/lib/offline-queue";
 import { loadCityCaps, loadFlags, loadPlanRows, loadThresholds, thresholdsPayload } from "@/lib/platform-state";
 import type { RiskThresholds } from "@/lib/risk-engine";
+import { ROLE_LABEL, isAppRole } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/client";
 
 export type PharmacyCare = {
@@ -282,16 +283,26 @@ export async function loadAdminCare(): Promise<AdminCare> {
     };
   }
   const supabase = createClient();
-  const [{ data: providerRows }, { data: assignmentRows }, { data: disputeRows }, { data: visitRows }, { data: alertRows }] = await Promise.all([
-    supabase.from("providers").select("id, user_id, provider_name, provider_type, cadre_or_specialty, city, service_area, verification_status, verification_badges"),
-    supabase.from("patient_provider_assignments").select("id, patient_id, provider_id, provider_type, active"),
-    supabase.from("disputes").select("id, visit_id, reason, status, resolution_notes, created_at, raised_by_user_id").in("status", ["open", "under_review"]),
-    supabase.from("visits").select("id, patient_id, visit_type, started_at, completed_at, gps_lat, gps_lng, patient_confirmed, confirmation_method, audio_language_used, status, sync_status, notes, chw_provider_id").or("status.eq.needs_review,status.eq.completed_unverified,sync_status.eq.failed_sync"),
-    supabase.from("alerts").select("id, patient_id, severity, title, message, status, created_at, assigned_to_user_id").in("severity", ["yellow", "red"]).in("status", ["new", "in_review"]),
+  const [providerRows, assignmentRows, disputeRows, visitRows, alertRows] = await Promise.all([
+    fetchPage<ProviderRecord>((from, to) =>
+      supabase.from("providers").select("id, user_id, provider_name, provider_type, cadre_or_specialty, city, service_area, verification_status, verification_badges").order("id").range(from, to),
+    ),
+    fetchPage<AssignmentRecord>((from, to) =>
+      supabase.from("patient_provider_assignments").select("id, patient_id, provider_id, provider_type, active").order("id").range(from, to),
+    ),
+    fetchPage<DisputeRecord>((from, to) =>
+      supabase.from("disputes").select("id, visit_id, reason, status, resolution_notes, created_at, raised_by_user_id").in("status", ["open", "under_review"]).order("created_at", { ascending: false }).range(from, to),
+    ),
+    fetchPage<VisitRecord>((from, to) =>
+      supabase.from("visits").select("id, patient_id, visit_type, started_at, completed_at, gps_lat, gps_lng, patient_confirmed, confirmation_method, audio_language_used, status, sync_status, notes, chw_provider_id").or("status.eq.needs_review,status.eq.completed_unverified,sync_status.eq.failed_sync").order("id").range(from, to),
+    ),
+    fetchPage<AlertRecord>((from, to) =>
+      supabase.from("alerts").select("id, patient_id, severity, title, message, status, created_at, assigned_to_user_id").in("severity", ["yellow", "red"]).in("status", ["new", "in_review"]).order("created_at", { ascending: false }).range(from, to),
+    ),
   ]);
-  const providers = await mergeProviders(((providerRows ?? []) as ProviderRecord[]).map(mapProvider), "live");
-  const assignments = await mergeAssignments(((assignmentRows ?? []) as AssignmentRecord[]).map(mapAssignment), "live");
-  const patients = await loadPatients([...new Set(assignments.map((row) => row.patientId))]);
+  const providers = await attachProviderEmails(await mergeProviders(providerRows.map(mapProvider), "live"));
+  const assignments = await mergeAssignments(assignmentRows.map(mapAssignment), "live");
+  const patients = await loadAdminRoster();
   const disputes = await mergeDisputes(await hydrateDisputes((disputeRows ?? []) as DisputeRecord[], patients), "live");
   const visits = await mergeVisits(((visitRows ?? []) as VisitRecord[]).map((row) => mapVisit(row, patients, providers)), "live");
   const alerts = openAlerts(await mergeAlerts(((alertRows ?? []) as AlertRecord[]).map(mapAlert), "live"));
@@ -411,6 +422,7 @@ export async function savePlan(plan: DemoPlanRow) {
       code: plan.code,
       price_daily_ngn: plan.priceDaily,
       price_monthly_ngn: plan.priceMonthly,
+      price_one_time_ngn: plan.priceOneTime,
       included_service_count: plan.includedServiceCount,
     },
     live,
@@ -421,6 +433,7 @@ export async function savePlan(plan: DemoPlanRow) {
     code: plan.code,
     priceDaily: plan.priceDaily,
     priceMonthly: plan.priceMonthly,
+    priceOneTime: plan.priceOneTime,
     includedServiceCount: plan.includedServiceCount,
   });
   return saved;
@@ -522,21 +535,31 @@ async function liveAudits(): Promise<DemoAudit[]> {
     .limit(200);
   const rows = (data ?? []) as AuditRecord[];
   const ids = [...new Set(rows.map((row) => row.actor_user_id).filter((id): id is string => Boolean(id)))];
-  const names = new Map<string, string>();
+  const names = new Map<string, { name: string; role: string }>();
   if (ids.length > 0) {
-    const { data: profiles } = await supabase.from("profiles").select("id, full_name").in("id", ids);
-    for (const profile of (profiles ?? []) as { id: string; full_name: string }[]) names.set(profile.id, profile.full_name);
+    const { data: profiles } = await supabase.from("profiles").select("id, full_name, primary_role").in("id", ids);
+    for (const profile of (profiles ?? []) as { id: string; full_name: string; primary_role: string | null }[]) {
+      names.set(profile.id, {
+        name: profile.full_name,
+        role: isAppRole(profile.primary_role) ? ROLE_LABEL[profile.primary_role] : "Staff",
+      });
+    }
   }
-  return rows.map((row) => ({
-    id: row.id,
-    actorUserId: row.actor_user_id,
-    actorName: (row.actor_user_id && names.get(row.actor_user_id)) || "Staff",
-    action: row.action,
-    entityType: row.entity_type,
-    entityId: row.entity_id,
-    metadata: row.metadata ?? {},
-    createdAt: row.created_at,
-  }));
+  return rows.map((row) => {
+    const profile = row.actor_user_id ? names.get(row.actor_user_id) : undefined;
+    const actorName = profile?.name || "Staff";
+    return {
+      id: row.id,
+      actorUserId: row.actor_user_id,
+      actorName,
+      actorRole: profile?.role || roleFromActorName(actorName) || "Staff",
+      action: row.action,
+      entityType: row.entity_type,
+      entityId: row.entity_id,
+      metadata: row.metadata ?? {},
+      createdAt: row.created_at,
+    };
+  });
 }
 
 function openAlerts(alerts: DemoAlert[]) {
@@ -556,6 +579,107 @@ function emptyClinician(notice: string): ClinicianCare {
     consultations: [],
     notice,
   };
+}
+
+async function fetchPage<T>(
+  query: (from: number, to: number) => PromiseLike<{ data: T[] | null }>,
+): Promise<T[]> {
+  const pageSize = 1000;
+  const rows: T[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data } = await query(from, from + pageSize - 1);
+    if (!data?.length) break;
+    rows.push(...data);
+    if (data.length < pageSize) break;
+  }
+  return rows;
+}
+
+async function attachProviderEmails(providers: DemoProvider[]) {
+  const ids = [...new Set(providers.map((provider) => provider.userId).filter(Boolean))];
+  if (ids.length === 0) return providers;
+  const supabase = createClient();
+  const emails = new Map<string, string>();
+  for (const chunk of chunks(ids, 150)) {
+    const { data } = await supabase.from("profiles").select("id, email").in("id", chunk);
+    for (const profile of (data ?? []) as { id: string; email: string | null }[]) {
+      if (profile.email) emails.set(profile.id, profile.email);
+    }
+  }
+  return providers.map((provider) => ({ ...provider, email: emails.get(provider.userId) || provider.email || "" }));
+}
+
+async function loadAdminRoster(): Promise<DemoPatient[]> {
+  const { live } = await currentSession();
+  if (!live) return DEMO_PATIENTS;
+  const supabase = createClient();
+  const rows = await fetchPage<PatientRecord>((from, to) =>
+    supabase
+      .from("patients")
+      .select("id, user_id, age, gender, city, state, conditions, is_self_sponsored, emergency_contact_name, emergency_contact_phone, risk_status")
+      .order("id")
+      .range(from, to),
+  );
+  const patients = await hydratePatientRows(rows);
+  const plans = new Map<string, string>();
+  const ids = patients.map((patient) => patient.id);
+  for (const chunk of chunks(ids, 150)) {
+    const { data } = await supabase.from("subscriptions").select("patient_id, plan_id, status").in("patient_id", chunk);
+    const links = (data ?? []) as { patient_id: string; plan_id: string; status: string }[];
+    const planIds = [...new Set(links.map((row) => row.plan_id))];
+    const names = new Map<string, string>();
+    if (planIds.length > 0) {
+      const { data: planRows } = await supabase.from("plans").select("id, name").in("id", planIds);
+      for (const plan of (planRows ?? []) as { id: string; name: string }[]) names.set(plan.id, plan.name);
+    }
+    const ranked = [...links].sort((left, right) => Number(right.status === "active") - Number(left.status === "active"));
+    for (const link of ranked) {
+      if (!plans.has(link.patient_id) && names.get(link.plan_id)) plans.set(link.patient_id, names.get(link.plan_id)!);
+    }
+  }
+  return patients.map((patient) => ({ ...patient, planName: plans.get(patient.id) || patient.planName || "" }));
+}
+
+function chunks<T>(items: T[], size: number) {
+  const groups: T[][] = [];
+  for (let index = 0; index < items.length; index += size) groups.push(items.slice(index, index + size));
+  return groups;
+}
+
+function roleFromActorName(name: string) {
+  const value = name.toLowerCase();
+  if (value.includes("super admin")) return "Super Admin";
+  if (value.includes("admin")) return "Admin";
+  return "";
+}
+
+async function hydratePatientRows(rows: PatientRecord[]): Promise<DemoPatient[]> {
+  const supabase = createClient();
+  const userIds = rows.map((row) => row.user_id).filter((id): id is string => Boolean(id));
+  const names = new Map<string, { name: string; email: string }>();
+  for (const chunk of chunks(userIds, 150)) {
+    const { data: profiles } = await supabase.from("profiles").select("id, full_name, email").in("id", chunk);
+    for (const profile of (profiles ?? []) as { id: string; full_name: string; email: string | null }[]) {
+      names.set(profile.id, { name: profile.full_name, email: profile.email ?? "" });
+    }
+  }
+  return rows.map((row) => {
+    const profile = row.user_id ? names.get(row.user_id) : undefined;
+    return {
+      id: row.id,
+      name: profile?.name || (row.city ? `Patient in ${row.city}` : "Patient"),
+      email: profile?.email || "",
+      city: row.city ?? "",
+      state: row.state ?? "",
+      age: row.age,
+      gender: row.gender,
+      conditions: row.conditions ?? [],
+      isSelfSponsored: row.is_self_sponsored,
+      emergencyContactName: row.emergency_contact_name ?? "",
+      emergencyContactPhone: row.emergency_contact_phone ?? "",
+      riskStatus: row.risk_status === "red" || row.risk_status === "yellow" ? row.risk_status : "green",
+    };
+  });
 }
 
 async function loadPatients(ids: string[]): Promise<DemoPatient[]> {
@@ -902,6 +1026,7 @@ function createAudit(row: QueueRecord): DemoAudit {
     id: row.id,
     actorUserId: row.payload.actor_user_id ? String(row.payload.actor_user_id) : null,
     actorName: String(row.payload.actor_name ?? "Staff"),
+    actorRole: roleFromActorName(String(row.payload.actor_name ?? "")) || undefined,
     action: String(row.payload.action ?? ""),
     entityType: String(row.payload.entity_type ?? ""),
     entityId: row.payload.entity_id ? String(row.payload.entity_id) : null,

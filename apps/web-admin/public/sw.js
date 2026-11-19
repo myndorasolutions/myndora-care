@@ -1,4 +1,4 @@
-const CACHE = "myndora-care-v1";
+const CACHE = "myndora-care-v2";
 const PRECACHE = [
   "/",
   "/icons/icon-192.png",
