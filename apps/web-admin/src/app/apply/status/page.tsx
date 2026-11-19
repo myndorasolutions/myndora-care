@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Logo } from "@/components/brand/logo";
@@ -6,7 +7,21 @@ import { PARTNER_ROLE_LABEL, ROLE_HOME, accountHome, isAppRole, isClearedVerific
 import { createClient } from "@/lib/supabase/server";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 
-export default async function ApplyStatusPage() {
+export default function ApplyStatusPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 py-8">
+          <p className="text-sm text-muted">Checking your application...</p>
+        </main>
+      }
+    >
+      <ApplyStatus />
+    </Suspense>
+  );
+}
+
+async function ApplyStatus() {
   if (!hasSupabaseEnv()) redirect("/login");
 
   const supabase = await createClient();
