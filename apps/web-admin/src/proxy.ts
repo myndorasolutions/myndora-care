@@ -12,8 +12,16 @@ import {
 import { demoModeEnabled, supabaseEnv } from "@/lib/supabase/env";
 
 const DEMO_COOKIE = "myndora_demo_role";
+const CANONICAL_HOST = "myndoracare.com";
 
 export async function proxy(request: NextRequest) {
+  if (request.nextUrl.hostname === `www.${CANONICAL_HOST}`) {
+    const target = request.nextUrl.clone();
+    target.hostname = CANONICAL_HOST;
+    target.protocol = "https:";
+    return NextResponse.redirect(target, 308);
+  }
+
   const env = supabaseEnv();
   let response = NextResponse.next({ request });
   let role: AppRole | null = null;

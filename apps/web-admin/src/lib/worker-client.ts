@@ -22,25 +22,42 @@ export type PaymentInit = {
 
 const TEST_TOKEN = "myndora-test";
 
-const LIVE_WORKER_API_URL = "https://myndora-workers.myndorasolutions-afb.workers.dev";
+const CUSTOM_WORKER_API_URL = "https://api.myndoracare.com";
+const FALLBACK_WORKER_API_URL = "https://myndora-workers.myndorasolutions-afb.workers.dev";
 
-function workerBase() {
+function workerBases() {
   const configured = process.env.NEXT_PUBLIC_WORKER_API_URL?.replace(/\/$/, "");
-  if (configured) return configured;
-  return process.env.NODE_ENV === "production" ? LIVE_WORKER_API_URL : "http://localhost:8787";
+  if (configured) return [configured];
+  if (process.env.NODE_ENV !== "production") return ["http://localhost:8787"];
+  return [CUSTOM_WORKER_API_URL, FALLBACK_WORKER_API_URL];
+}
+
+function isNetworkError(error: unknown) {
+  return error instanceof TypeError;
 }
 
 async function workerPost(path: string, body: BodyInit, headers?: HeadersInit) {
-  const response = await fetch(`${workerBase()}${path}`, {
-    method: "POST",
-    body,
-    headers,
-  });
-  const data = (await response.json()) as Record<string, unknown>;
-  if (!response.ok || data.ok === false) {
-    throw new Error(typeof data.error === "string" ? data.error : "Worker request failed.");
+  const bases = workerBases();
+  let lastNetworkError: unknown;
+  for (let index = 0; index < bases.length; index += 1) {
+    try {
+      const response = await fetch(`${bases[index]}${path}`, {
+        method: "POST",
+        body,
+        headers,
+      });
+      const data = (await response.json()) as Record<string, unknown>;
+      if (!response.ok || data.ok === false) {
+        throw new Error(typeof data.error === "string" ? data.error : "Worker request failed.");
+      }
+      return data;
+    } catch (error) {
+      const canRetry = index < bases.length - 1 && isNetworkError(error);
+      if (!canRetry) throw error;
+      lastNetworkError = error;
+    }
   }
-  return data;
+  throw lastNetworkError instanceof Error ? lastNetworkError : new Error("Worker request failed.");
 }
 
 export async function initializePayment(input: {

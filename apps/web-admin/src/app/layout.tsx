@@ -14,6 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://myndoracare.com"),
+  alternates: { canonical: "/" },
   title: "Myndora Care",
   description:
     "Chronic care coordination for hypertension and diabetes. Patients, sponsors, community health workers, pharmacies, and clinicians.",

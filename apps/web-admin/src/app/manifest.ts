@@ -6,6 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "Myndora Care",
     description: "Offline-first chronic care for hypertension and diabetes.",
     start_url: "/",
+    scope: "/",
     display: "standalone",
     background_color: "#f5f7fa",
     theme_color: "#0a63d8",

@@ -478,14 +478,33 @@ function json(request: Request, body: unknown, status = 200) {
   });
 }
 
+const ALLOWED_ORIGINS = new Set([
+  "https://myndoracare.com",
+  "https://www.myndoracare.com",
+  "https://myndora-care.myndorasolutions-afb.workers.dev",
+]);
+
+function isAllowedOrigin(origin: string) {
+  if (ALLOWED_ORIGINS.has(origin)) return true;
+  try {
+    const url = new URL(origin);
+    return url.protocol === "http:" && (url.hostname === "localhost" || url.hostname === "127.0.0.1");
+  } catch {
+    return false;
+  }
+}
+
 function corsHeaders(request: Request) {
-  return {
-    "Access-Control-Allow-Origin": request.headers.get("Origin") ?? "*",
+  const origin = request.headers.get("Origin");
+  const allowOrigin = !origin ? "*" : isAllowedOrigin(origin) ? origin : null;
+  const headers: Record<string, string> = {
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization, x-paystack-signature, x-myndora-test-token",
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
   };
+  if (allowOrigin) headers["Access-Control-Allow-Origin"] = allowOrigin;
+  return headers;
 }
 
 function text(value: unknown) {
