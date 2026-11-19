@@ -15,6 +15,13 @@ import { ROLE_LABEL, isClearedVerification } from "@/lib/roles";
 
 const STATUSES: VerificationStatus[] = ["pending", "remote_approved", "home_visit_approved", "verified", "suspended"];
 const PARTNER_STATUSES: VerificationStatus[] = ["pending", "verified", "suspended"];
+const STATUS_LABEL: Record<VerificationStatus, string> = {
+  pending: "Pending review",
+  remote_approved: "Approved for remote checks",
+  home_visit_approved: "Approved for home visits",
+  verified: "Approved",
+  suspended: "Suspended",
+};
 
 export function AdminHome() {
   const [care, setCare] = useState<AdminCare | null>(null);
@@ -151,7 +158,7 @@ export function AdminHome() {
                 <select className={`${fieldClass} mt-2`} value={draft.status} onChange={(event) => setDrafts({ ...drafts, [provider.id]: { ...draft, status: event.target.value as VerificationStatus } })}>
                   {statusOptions.map((status) => (
                     <option key={status} value={status} disabled={isChw && !ready && (status === "home_visit_approved" || status === "verified")}>
-                      {status.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase())}
+                      {STATUS_LABEL[status]}
                     </option>
                   ))}
                 </select>

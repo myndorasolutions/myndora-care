@@ -26,19 +26,24 @@ export function LoginForm() {
       email: String(form.get("email") ?? ""),
       password: String(form.get("password") ?? ""),
     });
-    setPending(false);
 
     if (signInError || !data.user) {
+      setPending(false);
       setError(signInError?.message ?? "Sign-in failed.");
       return;
     }
 
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("primary_role")
       .eq("id", data.user.id)
       .maybeSingle();
-    const role = isAppRole(profile?.primary_role) ? profile.primary_role : "patient";
+    if (profileError || !isAppRole(profile?.primary_role)) {
+      setPending(false);
+      setError("Your profile is not ready yet. Wait a moment, then try signing in again.");
+      return;
+    }
+    const role = profile.primary_role;
     let verificationStatus: string | null = null;
     if (isPartnerRole(role)) {
       const { data: provider } = await supabase
@@ -48,6 +53,7 @@ export function LoginForm() {
         .maybeSingle();
       verificationStatus = provider?.verification_status ?? null;
     }
+    setPending(false);
     router.push(accountHome(role, verificationStatus));
     router.refresh();
   }

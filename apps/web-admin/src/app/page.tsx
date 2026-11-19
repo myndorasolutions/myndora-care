@@ -18,7 +18,7 @@ export default function HomePage() {
         <Logo />
         <nav className="flex items-center gap-2 text-sm font-semibold">
           <Link href="/login" className="rounded-xl px-3 py-2 text-ink hover:bg-white">
-            Log in
+            Sign In
           </Link>
           <Link
             href="/signup"
@@ -40,14 +40,27 @@ export default function HomePage() {
           <p className="mt-4 max-w-2xl text-base leading-7 text-white/80">
             Myndora Care coordinates daily readings, remote checks, refill pickup, and clinician review for people living in Nigeria.
           </p>
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <Link href="/signup" className="rounded-xl bg-white px-4 py-3 text-center text-sm font-semibold text-ink">
               Start as a patient or sponsor
+            </Link>
+            <Link href="/apply" className="rounded-xl bg-primary px-4 py-3 text-center text-sm font-semibold text-white">
+              Join as a Care Partner (CHW, Pharmacy, Clinician)
             </Link>
             <Link href="/login" className="rounded-xl border border-white/30 px-4 py-3 text-center text-sm font-semibold">
               I already have an account
             </Link>
           </div>
+        </section>
+
+        <section className="rounded-2xl border border-line bg-card p-5">
+          <h2 className="text-2xl font-semibold">Join as a Care Partner (CHW, Pharmacy, Clinician)</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
+            Community health workers, pharmacies, and clinicians apply here. An admin reviews the application before a care dashboard opens.
+          </p>
+          <Link href="/apply" className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-white">
+            Join as a Care Partner (CHW, Pharmacy, Clinician)
+          </Link>
         </section>
 
         <section>
@@ -85,6 +98,15 @@ export default function HomePage() {
           </section>
         ) : null}
       </main>
+
+      <footer className="border-t border-line px-4 py-6 text-sm sm:px-8">
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-muted">Myndora Care</p>
+          <Link href="/login" className="font-semibold text-primary">
+            Care Team & Admin Sign In
+          </Link>
+        </div>
+      </footer>
     </div>
   );
 }

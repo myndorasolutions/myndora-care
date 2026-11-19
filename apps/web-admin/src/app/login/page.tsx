@@ -24,6 +24,12 @@ export default function LoginPage() {
           Create an account
         </Link>
       </p>
+      <p className="text-sm leading-6">
+        Are you a new CHW, pharmacy, or clinician?{" "}
+        <Link href="/apply" className="font-semibold text-primary">
+          Apply as a care partner
+        </Link>
+      </p>
     </main>
   );
 }
