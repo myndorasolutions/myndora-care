@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Logo } from "@/components/brand/logo";
+import { Logo, ParentMark } from "@/components/brand/logo";
 import { ROLE_LABEL, ROLES } from "@/lib/roles";
 import { demoModeEnabled } from "@/lib/supabase/env";
 
@@ -14,10 +14,10 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <header className="flex items-center justify-between gap-4 px-4 py-4 sm:px-8">
+      <header className="flex items-center justify-between gap-3 border-b border-line bg-white px-4 py-3 sm:px-8">
         <Logo />
         <nav className="flex items-center gap-2 text-sm font-semibold">
-          <Link href="/login" className="rounded-xl px-3 py-2 text-ink hover:bg-white">
+          <Link href="/login" className="rounded-xl px-3 py-2 text-ink hover:bg-surface">
             Sign In
           </Link>
           <Link
@@ -30,26 +30,47 @@ export default function HomePage() {
       </header>
 
       <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-10 px-4 py-8 sm:px-8">
-        <section className="rounded-3xl bg-ink px-6 py-10 text-white sm:px-10">
-          <p className="text-sm font-semibold uppercase tracking-wide text-white/70">
-            Hypertension and diabetes care
-          </p>
-          <h1 className="mt-3 max-w-xl text-4xl font-semibold leading-tight">
-            Care that stays with the family, the CHW, and the local pharmacy.
-          </h1>
-          <p className="mt-4 max-w-2xl text-base leading-7 text-white/80">
-            Myndora Care coordinates daily readings, remote checks, refill pickup, and clinician review for people living in Nigeria.
-          </p>
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <Link href="/signup" className="rounded-xl bg-white px-4 py-3 text-center text-sm font-semibold text-ink">
-              Start as a patient or sponsor
-            </Link>
-            <Link href="/apply" className="rounded-xl bg-primary px-4 py-3 text-center text-sm font-semibold text-white">
-              Join as a Care Partner (CHW, Pharmacy, Clinician)
-            </Link>
-            <Link href="/login" className="rounded-xl border border-white/30 px-4 py-3 text-center text-sm font-semibold">
-              I already have an account
-            </Link>
+        <section className="relative">
+          <div className="pointer-events-none absolute -left-6 top-4 h-40 w-40 rounded-full bg-[#00A896]/25 blur-3xl" />
+          <div className="pointer-events-none absolute -right-4 bottom-2 h-48 w-48 rounded-full bg-[#0B2545]/10 blur-3xl" />
+          <div className="relative grid items-center gap-8 rounded-[2rem] bg-[#f7f4ef] px-5 py-8 sm:px-8 lg:grid-cols-2 lg:gap-10 lg:px-10 lg:py-10">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-[#0B2545]/70">
+                Hypertension and diabetes care
+              </p>
+              <h1 className="mt-3 text-3xl font-semibold leading-tight text-[#0B2545] sm:text-4xl">
+                Care that stays with the family, the CHW, and the local pharmacy.
+              </h1>
+              <p className="mt-4 text-base leading-7 text-[#334155]">
+                Myndora Care coordinates daily readings, remote checks, refill pickup, and clinician review for people living in Nigeria.
+              </p>
+              <div className="mt-6 flex flex-col gap-3">
+                <Link href="/signup" className="rounded-xl bg-primary px-4 py-3 text-center text-sm font-semibold text-white">
+                  Start as a patient or sponsor
+                </Link>
+                <Link href="/apply" className="rounded-xl bg-[#00A896] px-4 py-3 text-center text-sm font-semibold text-white">
+                  Join as a Care Partner (CHW, Pharmacy, Clinician)
+                </Link>
+                <Link href="/login" className="rounded-xl border border-[#0B2545]/15 bg-white px-4 py-3 text-center text-sm font-semibold text-[#0B2545]">
+                  I already have an account
+                </Link>
+              </div>
+            </div>
+            <div>
+              <div className="overflow-hidden rounded-[1.75rem] bg-white shadow-[0_22px_50px_-24px_rgba(11,37,69,0.55)] ring-1 ring-white">
+                <img
+                  src="/images/hero-home-care.webp"
+                  alt="A Myndora Care worker checks an older woman's blood pressure during a home visit."
+                  width={1400}
+                  height={781}
+                  fetchPriority="high"
+                  className="aspect-[3/2] w-full object-cover object-center"
+                />
+              </div>
+              <p className="ml-auto mt-3 w-fit rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-[#0B2545] shadow-sm">
+                Verified Home Visits • GPS & Timestamp Proof
+              </p>
+            </div>
           </div>
         </section>
 
@@ -101,7 +122,7 @@ export default function HomePage() {
 
       <footer className="border-t border-line px-4 py-6 text-sm sm:px-8">
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-muted">Myndora Care</p>
+          <ParentMark />
           <Link href="/login" className="font-semibold text-primary">
             Care Team & Admin Sign In
           </Link>

@@ -9,7 +9,7 @@ export function SessionBar({ roleLabel }: { roleLabel: string }) {
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5">
       <div className="flex min-w-0 items-center gap-3">
         <Link href="/" className="shrink-0" aria-label="Main Screen">
-          <Logo className="h-8 w-auto" />
+          <Logo />
         </Link>
         <Link href="/" className="text-sm font-semibold text-primary">
           Main Screen
